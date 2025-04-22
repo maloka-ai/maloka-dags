@@ -29,6 +29,3 @@ jobs:
             # Sincroniza com a branch main
             git fetch origin main
             git reset --hard origin/main
-
-            # (Opcional) Reiniciar serviços do Airflow
-            sudo systemctl restart airflow-webserver
