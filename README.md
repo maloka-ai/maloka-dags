@@ -1,2 +1,2 @@
 # maloka-dags
-dags airflow
+dags airflow, com CI/CD das dags
