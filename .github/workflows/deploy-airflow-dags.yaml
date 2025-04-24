@@ -36,7 +36,7 @@ jobs:
 
             # 4) Atualize pip e instale as dependências
             pip install --upgrade pip
-            pip install -r requirements.txt
+            pip install -r /home/ubuntu/airflow/dags/requirements.txt
 
             # 5) (Opcional) Reinicie os serviços do Airflow
             pkill -f "airflow webserver" || true
