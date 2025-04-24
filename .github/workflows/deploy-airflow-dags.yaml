@@ -24,13 +24,14 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             # 1) Vá para o diretório raiz do Airflow
-            cd /home/ubuntu/airflow
+            cd /home/ubuntu/airflow/dags
 
             # 2) Atualize a branch main
             git fetch origin main
             git reset --hard origin/main
 
             # 3) Ative o virtualenv do Airflow
+            cd /home/ubuntu/
             source airflow-venv/bin/activate
 
             # 4) Atualize pip e instale as dependências
