@@ -3,11 +3,11 @@ name: Deploy Airflow DAGs to EC2
 on:
   push:
     branches:
-      - main   # agora usa a branch "main"
+      - main
 
 jobs:
   deploy:
-    name: Deploy DAGs via SSH
+    name: Deploy DAGs e dependências via SSH
     runs-on: ubuntu-latest
 
     steps:
@@ -16,16 +16,29 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Deploy das DAGs via SSH
+      - name: Deploy das DAGs e instalação de libs via SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST_DNS }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Navega até o diretório de DAGs
-            cd /home/ubuntu/airflow/dags
+            # 1) Vá para o diretório raiz do Airflow
+            cd /home/ubuntu/airflow
 
-            # Sincroniza com a branch main
+            # 2) Atualize a branch main
             git fetch origin main
             git reset --hard origin/main
+
+            # 3) Ative o virtualenv do Airflow
+            source airflow-venv/bin/activate
+
+            # 4) Atualize pip e instale as dependências
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+            # 5) (Opcional) Reinicie os serviços do Airflow
+            pkill -f "airflow webserver" || true
+            airflow webserver --port 8080 --daemon
+            pkill -f "airflow scheduler" || true
+            airflow scheduler --daemon
