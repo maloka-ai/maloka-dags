@@ -37,10 +37,3 @@ jobs:
             # 4) Atualize pip e instale as dependências
             pip install --upgrade pip
             pip install -r /home/ubuntu/airflow/dags/requirements.txt
-
-            # 5) (Opcional) saia do virtualenv e reinicie os serviços do Airflow
-            deactivate
-            pkill -f "airflow webserver" || true
-            airflow webserver --port 8080 --daemon
-            pkill -f "airflow scheduler" || true
-            airflow scheduler --daemon
