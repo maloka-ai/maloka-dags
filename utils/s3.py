@@ -1,14 +1,11 @@
-# utils/s3.py
-
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from config.settings import BUCKET_NAME
 
 class S3Client:
-    def __init__(self, conn_id: str = None, bucket: str = None):
-        from config.settings import AWS_CONN_ID, BUCKET_NAME
-        self.conn_id = conn_id or AWS_CONN_ID
-        self.bucket  = bucket  or BUCKET_NAME
+    def __init__(self, aws_conn_id: str, bucket: str = None):
+        self.conn_id = aws_conn_id
+        self.bucket  = bucket or BUCKET_NAME
         self.hook    = S3Hook(aws_conn_id=self.conn_id)
-        # boto3 client
         self.client  = self.hook.get_conn()
 
     def upload_bytes(self, data: bytes, key: str):
