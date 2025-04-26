@@ -1,6 +1,6 @@
 # Maloka Airflow Pipelines
 
-Este repositório contém as DAGs e utilitários para construção de pipelines de ingestão e transformação de dados no Apache Airflow, usando uma arquitetura em camadas (transient → bronze → silver) para múltiplas empresas.
+Este repositório contém as DAGs e utilitários para construção de pipelines de ingestão e transformação de dados no Apache Airflow, usando uma arquitetura em camadas (transient → bronze → silver → gold) para múltiplas empresas.
 
 ---
 
@@ -9,27 +9,28 @@ Este repositório contém as DAGs e utilitários para construção de pipelines 
 ```text
 airflow/
 ├── config/
-│   └── settings.py          # Configuração global (nome do bucket)
+│   └── settings.py            # Configuração global (nome do bucket)
 ├── utils/
-│   ├── s3.py                # Cliente S3 com conexão e upload/download
-│   └── layers.py            # Classes de camada (Transient, Bronze, Silver)
+│   ├── s3.py                  # Cliente S3 com conexão e upload/download
+│   └── layers.py              # Classes de camada (Transient, Bronze, Silver)
 └── dags/
-    └── add/                 # Pipeline "add" (exemplo); pode replicar para outras empresas
-        └── dag_add_pipeline.py  # DAG única com TaskGroup por camada
+    └── add/                   # Pipeline "add" (exemplo); pode duplicar para outras empresas
+        ├── dag_add_pipeline.py       # DAG única com TaskGroup por camada
+        └── dag_add_gold_postgres.py  # Exemplo de DAG para camada gold e carga no Postgres
 
-├── requirements.txt         # Dependências Python
-└── README.md                # Este arquivo
+├── requirements.txt           # Dependências Python
+└── README.md                  # Este arquivo
 ```
 
 ---
 
-## ⚙️ Pré‑Requisitos
+## ⚙️ Pré-Requisitos
 
 1. **Sistema Operacional**: Ubuntu 24.04 ou similar
 2. **Python**: >= 3.12
 3. **Apache Airflow**: >= 2.7.1
-4. **PostgreSQL**: para metastore (recomendado) ou SQLite (apenas dev)
-5. **AWS Credentials**: Usuário IAM com permissão S3
+4. **Banco de Metadados**: PostgreSQL (recomendado) ou SQLite (apenas dev)
+5. **Credenciais AWS**: Usuário IAM com permissão S3
 6. **GitHub Actions**: configurado no CI/CD
 
 ---
@@ -40,8 +41,7 @@ airflow/
 
 ```bash
 git clone <URL_DO_REPO> ~/airflow/dags
-cd ~/airflow
-```
+cd ~/airflow\```
 
 ### 2. Configurar o virtualenv
 
@@ -57,20 +57,19 @@ pip install -r dags/requirements.txt
 > **Recomendado:** PostgreSQL + LocalExecutor
 
 ```bash
-# Instalar e configurar PostgreSQL
 sudo apt update && sudo apt install -y postgresql libpq-dev
 sudo -u postgres createuser airflow --createdb --no-superuser
 sudo -u postgres psql -c "ALTER USER airflow WITH PASSWORD 'SUA_SENHA';"
 sudo -u postgres createdb airflow --owner airflow
 
-# Ajustar airflow.cfg em ~/airflow/airflow.cfg
+# Em airflow.cfg:
 # sql_alchemy_conn = postgresql+psycopg2://airflow:SUA_SENHA@localhost:5432/airflow
 # executor = LocalExecutor
 # load_examples = False
 
 export AIRFLOW_HOME=~/airflow
 airflow db init
-```  
+```
 
 > **Alternativa (dev):** SQLite (paliativo)
 ```ini
@@ -79,7 +78,7 @@ airflow db init
 # [scheduler]
 # parsing_processes = 1
 # max_threads = 1
-```  
+```
 
 ### 4. Criar Usuário Admin (RBAC)
 
@@ -96,9 +95,9 @@ airflow users create \
 ### 5. Conexão S3 no Airflow
 
 - Acesse **Admin → Connections** na UI
-- Crie conexão:
-  - Conn ID: `s3-conn-add`
-  - Conn Type: **Amazon Web Services**
+- Adicione conexão:
+  - Conn ID: `s3-conn-add`
+  - Conn Type: **Amazon Web Services**
   - Login: `<AWS_ACCESS_KEY_ID>`
   - Password: `<AWS_SECRET_ACCESS_KEY>`
   - Extra JSON:
@@ -120,35 +119,38 @@ BUCKET_NAME = "malokaai"
 ## 🛠️ Pipelines
 
 ### DAG: `add_pipeline`
-- ID: `add_pipeline`
-- Schedule: `@daily`
-- Camadas:
-  1. **transient**: gera CSV e faz upload em `s3://malokaai/add/transient/`
-  2. **bronze**: lê CSV, adiciona `DATA_EXTRACAO`, converte para Parquet em `s3://malokaai/add/bronze/`
-  3. **silver**: lê Parquet, gera `BK_COLUMNS`, limpa dados, grava em `s3://malokaai/add/silver/`
 
-> **Observação**: para criar pipelines de outras empresas, duplique a DAG e ajuste:
-> ```python
-> AWS_CONN_ID    = "s3-conn-<empresa>"
-> COMPANY_PREFIX = "<empresa>/"
-> ```
+- **Pipeline completo** com TaskGroup para transient, bronze e silver
+- **Conexões**: `s3-conn-add`
+- **Prefixo**: `add/`
+
+Fluxo:
+1. **Transient**: gera CSV e faz upload em `s3://malokaai/add/transient/`
+2. **Bronze**: lê CSV, adiciona `DATA_EXTRACAO`, escreve Parquet em `s3://malokaai/add/bronze/`
+3. **Silver**: lê Parquet, gera `BK_COLUMNS`, higieniza e escreve Parquet em `s3://malokaai/add/silver/`
+
+### DAG: `add_gold_postgres`
+
+- **Camada Gold**: lê Parquet da silver, grava Parquet em `s3://malokaai/add/gold/`
+- **Carga Postgres**: insere/atualiza dados na tabela `dados_gold` do banco `add`
+- **Conexões**: `s3-conn-add`, `ADD-POSTGRES-POCDASHBOARD`
 
 ---
 
 ## 📥 Execução Manual
 
-**Iniciar Airflow** (dentro do venv):
 ```bash
 export AIRFLOW_HOME=~/airflow
 airflow webserver --port 8080 --daemon
 airflow scheduler --daemon
 ```
-Acesse `http://<IP_OU_HOST>/airflow` e faça login com `SeuUSer`.
+Acesse `http://<IP_OU_HOST>/airflow` e faça login com `admin ou seu usuario`.
 
-**Trigger DAG** no UI ou CLI:
+Para disparar:
 ```bash
 airflow dags trigger add_pipeline
-```  
+airflow dags trigger add_gold_postgres
+```
 
 ---
 
@@ -175,7 +177,6 @@ jobs:
             source airflow-venv/bin/activate
             pip install --upgrade pip
             pip install -r airflow/dags/requirements.txt
-            # reiniciar Airflow
             pkill -f "airflow webserver"; airflow webserver --port 8080 --daemon
             pkill -f "airflow scheduler"; airflow scheduler --daemon
 ```
@@ -193,4 +194,35 @@ jobs:
 
 ---
 
+## 🔍 Consultas no PostgreSQL teste
+
+Para verificar os dados inseridos na tabela **dados_gold**, siga estes passos:
+
+1. Conecte-se ao banco **add** no psql:
+
+   ```bash
+   psql -h <HOST> -U <USUÁRIO> -d add
+   ```
+
+2. (Opcional) Liste as colunas da tabela **dados_gold**:
+
+   ```sql
+   \d dados_gold
+   ```
+
+3. Execute sua consulta para visualizar todos os registros:
+
+   ```sql
+   SELECT *
+   FROM dados_gold
+   ORDER BY id;
+   ```
+
+4. Para sair do psql:
+
+   ```sql
+   \q
+   ```
+
 *Maloka Data Engineering*
+
