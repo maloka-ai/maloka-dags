@@ -28,13 +28,13 @@ with DAG(
     default_args=default_args,
     schedule_interval="@daily",
     catchup=False,
-    tags=["add", "gold", "postgres"],
+    tags=["add", "gold", "postgresapplication"],
 ) as dag:
 
     def silver_to_gold(**context):
         # Monta chaves de S3 para silver e gold
         ds_nodash   = context["ds"].replace("-", "")
-        silver_key  = f"{PREFIX}silver/dados_{ds_nodash}.parquet"
+        silver_key  = f"{PREFIX}silver/dados_20250426.parquet"
         gold_key    = f"{PREFIX}gold/dados_{ds_nodash}.parquet"
 
         # Lê Parquet da camada silver
