@@ -1,5 +1,4 @@
 # dags/add/dag_add_gold_postgres.py
-
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
@@ -8,6 +7,7 @@ from io import BytesIO
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+from psycopg2.extras import execute_values
 
 # Conexões e bucket
 AWS_CONN_ID     = "s3-conn-add"
