@@ -63,21 +63,37 @@ with DAG(
     def gold_to_postgres(**context):
         # Recupera a key do gold
         gold_key = context["ti"].xcom_pull(key="gold_key")
+        if not gold_key:
+            raise ValueError("gold_key não encontrado no XCom")
 
         # Lê Parquet da camada gold
         s3 = S3Hook(aws_conn_id=AWS_CONN_ID).get_conn()
         obj = s3.get_object(Bucket=BUCKET, Key=gold_key)
         df  = pd.read_parquet(BytesIO(obj["Body"].read()))
 
-        # Insere no PostgreSQL
-        pg = PostgresHook(postgres_conn_id=POSTGRES_CONN)
-        # df.columns deve corresponder às colunas da tabela dados_gold
-        pg.insert_rows(
-            table="dados_gold",
-            rows=df.values.tolist(),
-            target_fields=list(df.columns),
-            commit_every=500,
-        )
+        # Prepara dados para upsert
+        rows      = [tuple(x) for x in df.values]
+        columns   = list(df.columns)  # ['id','valor','data_extracao','bk_columns']
+        table     = "dados_gold"
+        pk_cols   = ["id", "bk_columns"]
+        non_pk    = [c for c in columns if c not in pk_cols]
+        update_sql = ", ".join(f"{c}=EXCLUDED.{c}" for c in non_pk)
+
+        cols_sql    = ", ".join(columns)
+        placeholder = "(" + ",".join(["%s"] * len(columns)) + ")"
+        upsert_sql  = f"""
+            INSERT INTO {table} ({cols_sql})
+            VALUES %s
+            ON CONFLICT ({', '.join(pk_cols)})
+            DO UPDATE SET {update_sql};
+        """
+
+        pg_hook = PostgresHook(postgres_conn_id=POSTGRES_CONN)
+        conn    = pg_hook.get_conn()
+        cursor  = conn.cursor()
+        execute_values(cursor, upsert_sql, rows, template=placeholder)
+        conn.commit()
+        cursor.close()
 
     task_gold_to_postgres = PythonOperator(
         task_id="gold_to_postgres",
@@ -85,5 +101,4 @@ with DAG(
         provide_context=True,
     )
 
-    # Orquestração
     task_silver_to_gold >> task_gold_to_postgres
