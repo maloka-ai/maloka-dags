@@ -1,4 +1,4 @@
-name: Deploy Airflow DAGs to EC2
+name: Deploy Airflow
 
 on:
   push:
@@ -7,33 +7,21 @@ on:
 
 jobs:
   deploy:
-    name: Deploy DAGs e dependências via SSH
-    runs-on: ubuntu-latest
-
+    runs-on: maloka-dags-runner
     steps:
-      - name: Checkout do repositório
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Deploy das DAGs e instalação de libs via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOST_DNS }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            # 1) Vá para o diretório raiz dos DAGs
-            cd /home/ubuntu/airflow/dags
-
-            # 2) Atualize a branch main
-            git fetch origin main
+      - name: Garantir que o código está atualizado
+        run: |
+          cd /opt
+          # Se a pasta não existir, clona; se existir, faz reset
+          if [ ! -d ".git" ]; then
+            git clone https://github.com/maloka-ai/maloka-dags.git .
+          else
+            git fetch --all
             git reset --hard origin/main
+          fi
 
-            # 3) Ative o virtualenv do Airflow
-            cd /home/ubuntu
-            source airflow-venv/bin/activate
-
-            # 4) Atualize pip e instale as dependências
-            pip install --upgrade pip
-            pip install -r /home/ubuntu/airflow/dags/requirements.txt
+      - name: Copiar pastas para Airflow
+        run: |
+          cp -r /opt/config /opt/airflow/
+          cp -r /opt/dags /opt/airflow/
+          cp -r /opt/utils /opt/airflow/
