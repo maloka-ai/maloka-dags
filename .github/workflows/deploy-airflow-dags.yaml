@@ -12,16 +12,16 @@ jobs:
       - name: Garantir que o código está atualizado
         run: |
           cd /opt
-          # Se a pasta não existir, clona; se existir, faz reset
-          if [ ! -d ".git" ]; then
-            git clone https://github.com/maloka-ai/maloka-dags.git .
+          if [ ! -d "maloka-dags" ]; then
+            git clone https://github.com/maloka-ai/maloka-dags.git maloka-dags
           else
+            cd maloka-dags
             git fetch --all
             git reset --hard origin/main
           fi
 
       - name: Copiar pastas para Airflow
         run: |
-          cp -r /opt/config /opt/airflow/
-          cp -r /opt/dags /opt/airflow/
-          cp -r /opt/utils /opt/airflow/
+          cp -r /opt/maloka-dags/config /opt/airflow/
+          cp -r /opt/maloka-dags/dags /opt/airflow/
+          cp -r /opt/maloka-dags/utils /opt/airflow/
