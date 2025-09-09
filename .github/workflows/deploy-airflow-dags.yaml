@@ -30,6 +30,6 @@ jobs:
           AIRFLOW_DIR=/home/admin/airflow
           mkdir -p $AIRFLOW_DIR
           
-          cp -r /home/admin/maloka-dags/config $AIRFLOW_DIR/
-          cp -r /home/admin/maloka-dags/dags $AIRFLOW_DIR/
-          cp -r /home/admin/maloka-dags/utils $AIRFLOW_DIR/
+          cp -r /home/admin/maloka-dags/config/* $AIRFLOW_DIR/
+          cp -r /home/admin/maloka-dags/dags/* $AIRFLOW_DIR/
+          cp -r /home/admin/maloka-dags/utils/* $AIRFLOW_DIR/
