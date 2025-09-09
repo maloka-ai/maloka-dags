@@ -11,17 +11,20 @@ jobs:
     steps:
       - name: Garantir que o código está atualizado
         run: |
+          # Ajusta permissões caso necessário
+          sudo chown -R $(whoami):$(whoami) /opt
+
           cd /opt
           if [ ! -d "maloka-dags" ]; then
             git clone https://github.com/maloka-ai/maloka-dags.git maloka-dags
-          else
-            cd maloka-dags
-            git fetch --all
-            git reset --hard origin/main
           fi
+          cd maloka-dags
+          git fetch --all
+          git reset --hard origin/main
 
       - name: Copiar pastas para Airflow
         run: |
           cp -r /opt/maloka-dags/config /opt/airflow/
           cp -r /opt/maloka-dags/dags /opt/airflow/
           cp -r /opt/maloka-dags/utils /opt/airflow/
+
