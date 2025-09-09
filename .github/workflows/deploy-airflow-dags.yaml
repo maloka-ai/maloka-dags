@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: maloka-dags-runner
+    runs-on: self-hosted
     steps:
       - name: Garantir que o código está atualizado
         run: |
