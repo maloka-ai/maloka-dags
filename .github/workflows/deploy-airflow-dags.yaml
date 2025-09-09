@@ -1,4 +1,4 @@
-name: Deploy Airflow
+name: Deploy Airflow DAGs
 
 on:
   push:
@@ -6,30 +6,52 @@ on:
       - main
 
 jobs:
-  deploy:
+  deploy-airflow:
     runs-on: self-hosted
     steps:
-      - name: Garantir que o código está atualizado
+
+      - name: Atualizar código do repositório de DAGs
         run: |
-          # Diretório do runner no home do usuário
-          BASE_DIR=/home/admin
-          DAGS_DIR=$BASE_DIR/maloka-dags
+          # Diretórios base
+          RUNNER_HOME=/home/admin
+          DAG_REPO_DIR=$RUNNER_HOME/maloka-dags
 
-          mkdir -p $DAGS_DIR
+          # Garante que o diretório existe
+          mkdir -p $DAG_REPO_DIR
 
-          if [ ! -d "$DAGS_DIR/.git" ]; then
-            git clone https://github.com/maloka-ai/maloka-dags.git $DAGS_DIR
+          # Clonar ou atualizar repositório
+          if [ ! -d "$DAG_REPO_DIR/.git" ]; then
+            echo "Clonando repositório de DAGs..."
+            git clone https://github.com/maloka-ai/maloka-dags.git $DAG_REPO_DIR
           else
-            cd $DAGS_DIR
+            echo "Atualizando repositório de DAGs..."
+            cd $DAG_REPO_DIR
             git fetch --all
             git reset --hard origin/main
           fi
 
-      - name: Copiar pastas para Airflow
+      - name: Copiar DAGs e configurações para Airflow
         run: |
-          AIRFLOW_DIR=/home/admin/airflow
-          mkdir -p $AIRFLOW_DIR
-          
-          cp -r /home/admin/maloka-dags/config/* $AIRFLOW_DIR/
-          cp -r /home/admin/maloka-dags/dags/* $AIRFLOW_DIR/
-          cp -r /home/admin/maloka-dags/utils/* $AIRFLOW_DIR/
+          # Diretório de destino do Airflow
+          AIRFLOW_DIR=/opt/airflow
+
+          # Cria diretórios se não existirem
+          sudo mkdir -p $AIRFLOW_DIR/config
+          sudo mkdir -p $AIRFLOW_DIR/dags
+          sudo mkdir -p $AIRFLOW_DIR/utils
+
+          # Copia todo o conteúdo, incluindo subpastas e arquivos ocultos
+          echo "Copiando arquivos de configuração..."
+          sudo cp -a $DAG_REPO_DIR/config/. $AIRFLOW_DIR/config/
+
+          echo "Copiando DAGs..."
+          sudo cp -a $DAG_REPO_DIR/dags/. $AIRFLOW_DIR/dags/
+
+          echo "Copiando utilitários..."
+          sudo cp -a $DAG_REPO_DIR/utils/. $AIRFLOW_DIR/utils/
+
+      - name: Confirmar deploy
+        run: |
+          echo "Conteúdo do Airflow após deploy:"
+          ls -la /opt/airflow
+          ls -la /opt/airflow/dags
