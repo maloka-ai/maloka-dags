@@ -1,0 +1,57 @@
+2025-09-17 08:07:29,564 - INFO - Iniciando atualização de todas as modelagens na ordem definida para todos os clientes
+2025-09-17 08:07:29,564 - INFO - Executando dags.modelagens.analytics.vendas.analise_faturamento...
+2025-09-17 08:07:30,139 - INFO - Executando gerar_relatorios_faturamento para o cliente add
+2025-09-17 08:08:25,721 - INFO - Executando gerar_relatorios_faturamento para o cliente bibicell
+2025-09-17 08:10:46,505 - INFO - Executando gerar_relatorios_faturamento para o cliente beny
+2025-09-17 08:12:11,704 - INFO - Execução de dags.modelagens.analytics.vendas.analise_faturamento concluída com sucesso!
+2025-09-17 08:12:11,706 - INFO - Executando dags.modelagens.analytics.estoque.analise_estoque...
+2025-09-17 08:12:11,708 - INFO - Executando gerar_relatorios_estoque para o cliente add
+2025-09-17 08:15:17,606 - INFO - Executando gerar_relatorios_estoque para o cliente bibicell
+2025-09-17 08:21:46,206 - INFO - Executando gerar_relatorios_estoque para o cliente beny
+2025-09-17 08:34:11,500 - INFO - Execução de dags.modelagens.analytics.estoque.analise_estoque concluída com sucesso!
+2025-09-17 08:34:11,501 - WARNING - Não foi possível executar cliente.segmentacao: Segmentação só pode ser executada no primeiro dia do mês. Hoje é dia 17.
+2025-09-17 08:34:11,501 - INFO - Executando dags.modelagens.analytics.cliente.recorrencia_retencao...
+2025-09-17 08:34:11,503 - INFO - Executando gerar_analise_recorrencia_retencao para o cliente add
+2025-09-17 08:34:50,636 - INFO - Executando gerar_analise_recorrencia_retencao para o cliente bibicell
+2025-09-17 08:35:48,360 - INFO - Executando gerar_analise_recorrencia_retencao para o cliente beny
+2025-09-17 08:36:27,635 - INFO - Execução de dags.modelagens.analytics.cliente.recorrencia_retencao concluída com sucesso!
+2025-09-17 08:36:27,637 - INFO - Executando dags.modelagens.analytics.cliente.previsao_retorno...
+2025-09-17 08:36:27,644 - INFO - Executando gerar_analise_previsao_retorno para o cliente add
+2025-09-17 08:38:02,380 - INFO - Executando gerar_analise_previsao_retorno para o cliente bibicell
+2025-09-17 08:38:40,813 - INFO - Executando gerar_analise_previsao_retorno para o cliente beny
+2025-09-17 08:45:20,608 - INFO - Execução de dags.modelagens.analytics.cliente.previsao_retorno concluída com sucesso!
+2025-09-17 08:45:20,610 - INFO - Executando dags.modelagens.analytics.compra.analise_compra...
+2025-09-17 08:45:20,613 - INFO - Executando gerar_relatorios_compra para o cliente add
+2025-09-17 08:48:10,812 - INFO - Executando gerar_relatorios_compra para o cliente bibicell
+2025-09-17 08:51:10,662 - INFO - Executando gerar_relatorios_compra para o cliente beny
+2025-09-17 08:57:18,723 - INFO - Execução de dags.modelagens.analytics.compra.analise_compra concluída com sucesso!
+2025-09-17 08:57:18,724 - INFO - Executando dags.modelagens.analytics.vendas.analise_vendas_atipicas...
+2025-09-17 08:57:20,212 - INFO - Executando gerar_analise_vendas_atipicas para o cliente add
+2025-09-17 08:57:35,653 - INFO - Executando gerar_analise_vendas_atipicas para o cliente bibicell
+2025-09-17 08:57:46,217 - INFO - Executando gerar_analise_vendas_atipicas para o cliente beny
+2025-09-17 08:58:24,176 - INFO - Execução de dags.modelagens.analytics.vendas.analise_vendas_atipicas concluída com sucesso!
+2025-09-17 08:58:24,177 - INFO - 
+==================================================
+2025-09-17 08:58:24,178 - INFO - RESUMO DA EXECUÇÃO
+2025-09-17 08:58:24,178 - INFO - ==================================================
+2025-09-17 08:58:24,178 - INFO - 
+[CLIENTE]
+2025-09-17 08:58:24,178 - INFO -   - segmentacao: ❌ FALHA
+2025-09-17 08:58:24,178 - INFO -   - retencao: ✅ SUCESSO
+2025-09-17 08:58:24,178 - INFO -   - previsao: ✅ SUCESSO
+2025-09-17 08:58:24,178 - INFO - 
+[COMPRA]
+2025-09-17 08:58:24,178 - INFO -   - analise: ✅ SUCESSO
+2025-09-17 08:58:24,178 - INFO - 
+[ESTOQUE]
+2025-09-17 08:58:24,178 - INFO -   - analise: ✅ SUCESSO
+2025-09-17 08:58:24,178 - INFO - 
+[VENDAS]
+2025-09-17 08:58:24,178 - INFO -   - faturamento: ✅ SUCESSO
+2025-09-17 08:58:24,178 - INFO -   - atipicas: ✅ SUCESSO
+2025-09-17 08:58:24,178 - INFO - 
+==================================================
+2025-09-17 08:58:24,178 - INFO - TOTAL: 7 modelagens
+2025-09-17 08:58:24,178 - INFO - SUCESSOS: 6
+2025-09-17 08:58:24,178 - INFO - FALHAS: 1
+2025-09-17 08:58:24,178 - INFO - ==================================================

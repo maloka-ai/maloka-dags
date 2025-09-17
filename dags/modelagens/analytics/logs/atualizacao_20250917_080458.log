@@ -1,0 +1,45 @@
+2025-09-17 08:04:58,260 - INFO - Iniciando atualização de todas as modelagens na ordem definida para todos os clientes
+2025-09-17 08:04:58,260 - INFO - Executando dags.modelagens.analytics.vendas.analise_faturamento...
+2025-09-17 08:04:58,862 - INFO - Módulo dags.modelagens.analytics.vendas.analise_faturamento não tem função principal mapeada, main() ou run()
+2025-09-17 08:04:58,862 - INFO - Execução de dags.modelagens.analytics.vendas.analise_faturamento concluída com sucesso!
+2025-09-17 08:04:58,862 - INFO - Executando dags.modelagens.analytics.estoque.analise_estoque...
+2025-09-17 08:04:58,868 - INFO - Módulo dags.modelagens.analytics.estoque.analise_estoque não tem função principal mapeada, main() ou run()
+2025-09-17 08:04:58,868 - INFO - Execução de dags.modelagens.analytics.estoque.analise_estoque concluída com sucesso!
+2025-09-17 08:04:58,868 - WARNING - Não foi possível executar cliente.segmentacao: Segmentação só pode ser executada no primeiro dia do mês. Hoje é dia 17.
+2025-09-17 08:04:58,868 - INFO - Executando dags.modelagens.analytics.cliente.recorrencia_retencao...
+2025-09-17 08:04:58,872 - INFO - Módulo dags.modelagens.analytics.cliente.recorrencia_retencao não tem função principal mapeada, main() ou run()
+2025-09-17 08:04:58,872 - INFO - Execução de dags.modelagens.analytics.cliente.recorrencia_retencao concluída com sucesso!
+2025-09-17 08:04:58,872 - INFO - Executando dags.modelagens.analytics.cliente.previsao_retorno...
+2025-09-17 08:04:58,880 - INFO - Módulo dags.modelagens.analytics.cliente.previsao_retorno não tem função principal mapeada, main() ou run()
+2025-09-17 08:04:58,880 - INFO - Execução de dags.modelagens.analytics.cliente.previsao_retorno concluída com sucesso!
+2025-09-17 08:04:58,881 - INFO - Executando dags.modelagens.analytics.compra.analise_compra...
+2025-09-17 08:04:58,886 - INFO - Módulo dags.modelagens.analytics.compra.analise_compra não tem função principal mapeada, main() ou run()
+2025-09-17 08:04:58,886 - INFO - Execução de dags.modelagens.analytics.compra.analise_compra concluída com sucesso!
+2025-09-17 08:04:58,886 - INFO - Executando dags.modelagens.analytics.vendas.analise_vendas_atipicas...
+2025-09-17 08:05:00,226 - INFO - Módulo dags.modelagens.analytics.vendas.analise_vendas_atipicas não tem função principal mapeada, main() ou run()
+2025-09-17 08:05:00,227 - INFO - Execução de dags.modelagens.analytics.vendas.analise_vendas_atipicas concluída com sucesso!
+2025-09-17 08:05:00,227 - INFO - 
+==================================================
+2025-09-17 08:05:00,227 - INFO - RESUMO DA EXECUÇÃO
+2025-09-17 08:05:00,227 - INFO - ==================================================
+2025-09-17 08:05:00,227 - INFO - 
+[CLIENTE]
+2025-09-17 08:05:00,227 - INFO -   - segmentacao: ❌ FALHA
+2025-09-17 08:05:00,227 - INFO -   - retencao: ✅ SUCESSO
+2025-09-17 08:05:00,227 - INFO -   - previsao: ✅ SUCESSO
+2025-09-17 08:05:00,227 - INFO - 
+[COMPRA]
+2025-09-17 08:05:00,227 - INFO -   - analise: ✅ SUCESSO
+2025-09-17 08:05:00,227 - INFO - 
+[ESTOQUE]
+2025-09-17 08:05:00,227 - INFO -   - analise: ✅ SUCESSO
+2025-09-17 08:05:00,227 - INFO - 
+[VENDAS]
+2025-09-17 08:05:00,227 - INFO -   - faturamento: ✅ SUCESSO
+2025-09-17 08:05:00,227 - INFO -   - atipicas: ✅ SUCESSO
+2025-09-17 08:05:00,227 - INFO - 
+==================================================
+2025-09-17 08:05:00,227 - INFO - TOTAL: 7 modelagens
+2025-09-17 08:05:00,227 - INFO - SUCESSOS: 6
+2025-09-17 08:05:00,227 - INFO - FALHAS: 1
+2025-09-17 08:05:00,227 - INFO - ==================================================
