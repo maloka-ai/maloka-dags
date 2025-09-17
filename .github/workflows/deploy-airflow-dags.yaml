@@ -1,4 +1,4 @@
-name: Deploy Airflow DAGs to EC2
+name: Deploy Airflow DAGs
 
 on:
   push:
@@ -6,34 +6,54 @@ on:
       - main
 
 jobs:
-  deploy:
-    name: Deploy DAGs e dependências via SSH
-    runs-on: ubuntu-latest
+  deploy_airflow:
+    runs-on: self-hosted
 
     steps:
-      - name: Checkout do repositório
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Garantir que o repositório está atualizado
+        run: |
+          echo "==== Atualizando repositório maloka-dags ===="
+          BASE_DIR=/home/admin
+          DAG_REPO_DIR=$BASE_DIR/maloka-dags
 
-      - name: Deploy das DAGs e instalação de libs via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOST_DNS }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            # 1) Vá para o diretório raiz dos DAGs
-            cd /home/ubuntu/airflow/dags
+          mkdir -p $DAG_REPO_DIR
 
-            # 2) Atualize a branch main
-            git fetch origin main
+          if [ ! -d "$DAG_REPO_DIR/.git" ]; then
+            echo "Clonando repositório..."
+            git clone https://github.com/maloka-ai/maloka-dags.git $DAG_REPO_DIR
+          else
+            echo "Repositório já existe. Atualizando..."
+            cd $DAG_REPO_DIR
+            git fetch --all
             git reset --hard origin/main
+          fi
 
-            # 3) Ative o virtualenv do Airflow
-            cd /home/ubuntu
-            source airflow-venv/bin/activate
+      - name: Copiar pastas para Airflow
+        run: |
+          echo "==== Copiando DAGs e configurações para o Airflow ===="
+          AIRFLOW_DIR=/opt/airflow
+          DAG_REPO_DIR=/home/admin/maloka-dags
 
-            # 4) Atualize pip e instale as dependências
-            pip install --upgrade pip
-            pip install -r /home/ubuntu/airflow/dags/requirements.txt
+          sudo mkdir -p $AIRFLOW_DIR
+
+          copy_if_exists() {
+            local src=$1
+            local dest=$2
+            if [ -d "$src" ]; then
+              echo "Copiando $src para $dest..."
+              sudo mkdir -p "$dest"
+              sudo cp -a "$src/." "$dest/"
+            else
+              echo "Diretório $src não existe, pulando..."
+            fi
+          }
+
+          copy_if_exists "$DAG_REPO_DIR/config" "$AIRFLOW_DIR/config"
+          copy_if_exists "$DAG_REPO_DIR/dags" "$AIRFLOW_DIR/dags"
+          copy_if_exists "$DAG_REPO_DIR/utils" "$AIRFLOW_DIR/utils"
+
+      - name: Finalização
+        run: |
+          echo "==== Deploy finalizado com sucesso! ===="
+          echo "Pastas no Airflow:"
+          ls -la /opt/airflow
