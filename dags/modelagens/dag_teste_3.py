@@ -4,7 +4,7 @@ from datetime import datetime
 
 def test3():
     # teste
-    print("Executou DAG de teste 3 ...")
+    print("Executou DAG de teste 333 ...")
 
 with DAG(
     dag_id="dagTeste03",
