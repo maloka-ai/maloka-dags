@@ -1,0 +1,160 @@
+2025-09-17 07:59:05,502 - INFO - Iniciando atualização de todas as modelagens na ordem definida para todos os clientes
+2025-09-17 07:59:05,502 - INFO - Executando Modelagens.Vendas.analise_faturamento...
+2025-09-17 07:59:05,502 - ERROR - Erro ao executar vendas.faturamento: No module named 'Modelagens'
+2025-09-17 07:59:05,505 - ERROR - Traceback (most recent call last):
+  File "/Users/leandrosilva/Documents/DAGS/maloka-dags/dags/modelagens/analytics/main.py", line 154, in executar_modelagem
+    modulo = importlib.import_module(modulo_path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1304, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1304, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1318, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'Modelagens'
+
+2025-09-17 07:59:05,505 - INFO - Executando Modelagens.Estoque.analise_estoque...
+2025-09-17 07:59:05,505 - ERROR - Erro ao executar estoque.analise: No module named 'Modelagens'
+2025-09-17 07:59:05,505 - ERROR - Traceback (most recent call last):
+  File "/Users/leandrosilva/Documents/DAGS/maloka-dags/dags/modelagens/analytics/main.py", line 154, in executar_modelagem
+    modulo = importlib.import_module(modulo_path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1304, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1304, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1318, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'Modelagens'
+
+2025-09-17 07:59:05,506 - WARNING - Não foi possível executar cliente.segmentacao: Segmentação só pode ser executada no primeiro dia do mês. Hoje é dia 17.
+2025-09-17 07:59:05,506 - INFO - Executando Modelagens.Cliente.recorrencia_retencao...
+2025-09-17 07:59:05,506 - ERROR - Erro ao executar cliente.retencao: No module named 'Modelagens'
+2025-09-17 07:59:05,506 - ERROR - Traceback (most recent call last):
+  File "/Users/leandrosilva/Documents/DAGS/maloka-dags/dags/modelagens/analytics/main.py", line 154, in executar_modelagem
+    modulo = importlib.import_module(modulo_path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1304, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1304, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1318, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'Modelagens'
+
+2025-09-17 07:59:05,506 - INFO - Executando Modelagens.Cliente.previsao_retorno...
+2025-09-17 07:59:05,506 - ERROR - Erro ao executar cliente.previsao: No module named 'Modelagens'
+2025-09-17 07:59:05,507 - ERROR - Traceback (most recent call last):
+  File "/Users/leandrosilva/Documents/DAGS/maloka-dags/dags/modelagens/analytics/main.py", line 154, in executar_modelagem
+    modulo = importlib.import_module(modulo_path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1304, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1304, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1318, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'Modelagens'
+
+2025-09-17 07:59:05,507 - INFO - Executando Modelagens.Compra.analise_compra...
+2025-09-17 07:59:05,507 - ERROR - Erro ao executar compra.analise: No module named 'Modelagens'
+2025-09-17 07:59:05,507 - ERROR - Traceback (most recent call last):
+  File "/Users/leandrosilva/Documents/DAGS/maloka-dags/dags/modelagens/analytics/main.py", line 154, in executar_modelagem
+    modulo = importlib.import_module(modulo_path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1304, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1304, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1318, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'Modelagens'
+
+2025-09-17 07:59:05,507 - WARNING - Pulando vendas.atipicas porque a dependência compra.analise falhou
+2025-09-17 07:59:05,507 - INFO - Executando Modelagens.Vendas.analise_vendas_atipicas...
+2025-09-17 07:59:05,507 - ERROR - Erro ao executar vendas.atipicas: No module named 'Modelagens'
+2025-09-17 07:59:05,507 - ERROR - Traceback (most recent call last):
+  File "/Users/leandrosilva/Documents/DAGS/maloka-dags/dags/modelagens/analytics/main.py", line 154, in executar_modelagem
+    modulo = importlib.import_module(modulo_path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1304, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1304, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1381, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1354, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1318, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'Modelagens'
+
+2025-09-17 07:59:05,508 - INFO - 
+==================================================
+2025-09-17 07:59:05,508 - INFO - RESUMO DA EXECUÇÃO
+2025-09-17 07:59:05,508 - INFO - ==================================================
+2025-09-17 07:59:05,508 - INFO - 
+[CLIENTE]
+2025-09-17 07:59:05,508 - INFO -   - segmentacao: ❌ FALHA
+2025-09-17 07:59:05,508 - INFO -   - retencao: ❌ FALHA
+2025-09-17 07:59:05,508 - INFO -   - previsao: ❌ FALHA
+2025-09-17 07:59:05,508 - INFO - 
+[COMPRA]
+2025-09-17 07:59:05,508 - INFO -   - analise: ❌ FALHA
+2025-09-17 07:59:05,508 - INFO - 
+[ESTOQUE]
+2025-09-17 07:59:05,508 - INFO -   - analise: ❌ FALHA
+2025-09-17 07:59:05,508 - INFO - 
+[VENDAS]
+2025-09-17 07:59:05,508 - INFO -   - faturamento: ❌ FALHA
+2025-09-17 07:59:05,508 - INFO -   - atipicas: ❌ FALHA
+2025-09-17 07:59:05,508 - INFO - 
+==================================================
+2025-09-17 07:59:05,508 - INFO - TOTAL: 7 modelagens
+2025-09-17 07:59:05,508 - INFO - SUCESSOS: 0
+2025-09-17 07:59:05,508 - INFO - FALHAS: 7
+2025-09-17 07:59:05,508 - INFO - ==================================================
