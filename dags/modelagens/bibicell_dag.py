@@ -42,7 +42,7 @@ default_args = {
 
 # Definição da DAG usando with
 with DAG(
-    dag_id='maloka_modelagens_bibicell',
+    dag_id='dag_modelagem_bibicell',
     description='Executa todas as modelagens do sistema Maloka para o cliente BIBICELL',
     schedule_interval='30 8 * * *',  # Executar todos os dias às 8:30h (Horário de Brasília)
     start_date=datetime(2025, 9, 10),  # Data de início
