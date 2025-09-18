@@ -420,6 +420,6 @@ def gerar_relatorios_orcamento(nome_cliente):
     print("\nRelatório de Clientes Ativos - Orçamentos x Pedidos Concluídos (últimos 6 meses):")
     print(df_clientes_orcamento_pedido.head())
 
-gerar_relatorios_orcamento("add")
-        
-
+if __name__ == "__main__":
+    # Exemplo de execução para o cliente "add"
+    gerar_relatorios_orcamento("add")
