@@ -931,353 +931,353 @@ def gerar_analise_vendas_atipicas(nome_cliente):
     if conn is None:
         return
     
-    def visualizar_produtos_atipicos(nome_cliente, df_vendas_preparado, df_empirico=None, df_tukey=None, df_zscore=None, df_consolidado=None):
-        """
-        Gera visualizações de produtos com vendas atípicas, mostrando a série temporal completa
-        de vendas no último ano e destacando os pontos atípicos.
+    # def visualizar_produtos_atipicos(nome_cliente, df_vendas_preparado, df_empirico=None, df_tukey=None, df_zscore=None, df_consolidado=None):
+    #     """
+    #     Gera visualizações de produtos com vendas atípicas, mostrando a série temporal completa
+    #     de vendas no último ano e destacando os pontos atípicos.
         
-        Args:
-            nome_cliente: Nome do cliente para identificar diretório de saída
-            df_vendas_preparado: DataFrame com histórico completo de vendas do último ano
-            df_empirico: DataFrame com resultados do método empírico
-            df_tukey: DataFrame com resultados do método Tukey
-            df_zscore: DataFrame com resultados do método Z-Score
-            df_consolidado: DataFrame consolidado (se já existir)
+    #     Args:
+    #         nome_cliente: Nome do cliente para identificar diretório de saída
+    #         df_vendas_preparado: DataFrame com histórico completo de vendas do último ano
+    #         df_empirico: DataFrame com resultados do método empírico
+    #         df_tukey: DataFrame com resultados do método Tukey
+    #         df_zscore: DataFrame com resultados do método Z-Score
+    #         df_consolidado: DataFrame consolidado (se já existir)
         
-        Returns:
-            Caminho do diretório onde as visualizações foram salvas
-        """
-        # Verificar se o cliente existe na configuração
-        if nome_cliente not in CLIENTES:
-            print(f"Erro: Cliente '{nome_cliente}' não encontrado na configuração!")
-            print(f"Clientes disponíveis: {', '.join(CLIENTES.keys())}")
-            return
+    #     Returns:
+    #         Caminho do diretório onde as visualizações foram salvas
+    #     """
+    #     # Verificar se o cliente existe na configuração
+    #     if nome_cliente not in CLIENTES:
+    #         print(f"Erro: Cliente '{nome_cliente}' não encontrado na configuração!")
+    #         print(f"Clientes disponíveis: {', '.join(CLIENTES.keys())}")
+    #         return
             
-        # Caminho para salvar as visualizações
-        diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-        diretorio_vendas_atipicas = os.path.join(diretorio_atual, 'relatorio_vendas_atipicas', nome_cliente)
+    #     # Caminho para salvar as visualizações
+    #     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+    #     diretorio_vendas_atipicas = os.path.join(diretorio_atual, 'relatorio_vendas_atipicas', nome_cliente)
         
-        # Verificar se o diretório de resultados existe, senão criar
-        os.makedirs(diretorio_vendas_atipicas, exist_ok=True)
+    #     # Verificar se o diretório de resultados existe, senão criar
+    #     os.makedirs(diretorio_vendas_atipicas, exist_ok=True)
         
-        # Criar diretório para as visualizações
-        diretorio_visualizacoes = os.path.join(diretorio_vendas_atipicas, 'visualizacoes')
-        os.makedirs(diretorio_visualizacoes, exist_ok=True)
+    #     # Criar diretório para as visualizações
+    #     diretorio_visualizacoes = os.path.join(diretorio_vendas_atipicas, 'visualizacoes')
+    #     os.makedirs(diretorio_visualizacoes, exist_ok=True)
 
-        # Criar subpastas para cada estratégia
-        diretorio_empirico = os.path.join(diretorio_visualizacoes, 'metodo_empirico')
-        diretorio_tukey = os.path.join(diretorio_visualizacoes, 'metodo_tukey')
-        # diretorio_zscore = os.path.join(diretorio_visualizacoes, 'metodo_zscore')
-        diretorio_combinado = os.path.join(diretorio_visualizacoes, 'metodos_combinados')
+    #     # Criar subpastas para cada estratégia
+    #     diretorio_empirico = os.path.join(diretorio_visualizacoes, 'metodo_empirico')
+    #     diretorio_tukey = os.path.join(diretorio_visualizacoes, 'metodo_tukey')
+    #     # diretorio_zscore = os.path.join(diretorio_visualizacoes, 'metodo_zscore')
+    #     diretorio_combinado = os.path.join(diretorio_visualizacoes, 'metodos_combinados')
         
-        # Criar diretórios para cada método
-        os.makedirs(diretorio_empirico, exist_ok=True)
-        os.makedirs(diretorio_tukey, exist_ok=True)
-        # os.makedirs(diretorio_zscore, exist_ok=True)
-        os.makedirs(diretorio_combinado, exist_ok=True)
+    #     # Criar diretórios para cada método
+    #     os.makedirs(diretorio_empirico, exist_ok=True)
+    #     os.makedirs(diretorio_tukey, exist_ok=True)
+    #     # os.makedirs(diretorio_zscore, exist_ok=True)
+    #     os.makedirs(diretorio_combinado, exist_ok=True)
         
-        # Verificar se já temos um DataFrame consolidado ou precisamos criar um
-        if df_consolidado is None:
-            # Se não temos o consolidado, verificamos se temos os DataFrames individuais para consolidar
-            print("\nConsolidando resultados dos três métodos para visualização...")
+    #     # Verificar se já temos um DataFrame consolidado ou precisamos criar um
+    #     if df_consolidado is None:
+    #         # Se não temos o consolidado, verificamos se temos os DataFrames individuais para consolidar
+    #         print("\nConsolidando resultados dos três métodos para visualização...")
             
-            # Converter os DataFrames para o formato necessário e adicionar flags
-            dfs_processados = []
+    #         # Converter os DataFrames para o formato necessário e adicionar flags
+    #         dfs_processados = []
             
-            if df_empirico is not None and not df_empirico.empty:
-                df_emp = df_empirico.copy()
-                df_emp['metodo'] = 'empirico'
-                df_emp['flag_empirico'] = True
-                df_emp['flag_tukey'] = False
-                df_emp['flag_z_score'] = False
-                df_emp['data_venda'] = pd.to_datetime(df_emp['data_venda'])
-                dfs_processados.append(df_emp)
+    #         if df_empirico is not None and not df_empirico.empty:
+    #             df_emp = df_empirico.copy()
+    #             df_emp['metodo'] = 'empirico'
+    #             df_emp['flag_empirico'] = True
+    #             df_emp['flag_tukey'] = False
+    #             df_emp['flag_z_score'] = False
+    #             df_emp['data_venda'] = pd.to_datetime(df_emp['data_venda'])
+    #             dfs_processados.append(df_emp)
                 
-            if df_tukey is not None and not df_tukey.empty:
-                df_tuk = df_tukey.copy()
-                df_tuk['metodo'] = 'tukey'
-                df_tuk['flag_empirico'] = False
-                df_tuk['flag_tukey'] = True
-                df_tuk['flag_z_score'] = False
-                df_tuk['data_venda'] = pd.to_datetime(df_tuk['data_venda'])
-                dfs_processados.append(df_tuk)
+    #         if df_tukey is not None and not df_tukey.empty:
+    #             df_tuk = df_tukey.copy()
+    #             df_tuk['metodo'] = 'tukey'
+    #             df_tuk['flag_empirico'] = False
+    #             df_tuk['flag_tukey'] = True
+    #             df_tuk['flag_z_score'] = False
+    #             df_tuk['data_venda'] = pd.to_datetime(df_tuk['data_venda'])
+    #             dfs_processados.append(df_tuk)
                 
-            # if df_zscore is not None and not df_zscore.empty:
-            #     df_zsc = df_zscore.copy()
-            #     df_zsc['metodo'] = 'zscore'
-            #     df_zsc['flag_empirico'] = False
-            #     df_zsc['flag_tukey'] = False
-            #     df_zsc['flag_z_score'] = True
-            #     df_zsc['data_venda'] = pd.to_datetime(df_zsc['data_venda'])
-            #     dfs_processados.append(df_zsc)
+    #         # if df_zscore is not None and not df_zscore.empty:
+    #         #     df_zsc = df_zscore.copy()
+    #         #     df_zsc['metodo'] = 'zscore'
+    #         #     df_zsc['flag_empirico'] = False
+    #         #     df_zsc['flag_tukey'] = False
+    #         #     df_zsc['flag_z_score'] = True
+    #         #     df_zsc['data_venda'] = pd.to_datetime(df_zsc['data_venda'])
+    #         #     dfs_processados.append(df_zsc)
                 
-            if not dfs_processados:
-                print("Nenhum DataFrame com resultados foi fornecido. Impossível gerar visualizações.")
-                return None
+    #         if not dfs_processados:
+    #             print("Nenhum DataFrame com resultados foi fornecido. Impossível gerar visualizações.")
+    #             return None
                 
-            # Consolidar os DataFrames
-            df_consolidado = pd.concat(dfs_processados, ignore_index=True)
-        else:
-            # Se já temos o consolidado, apenas garantir que data_venda é datetime
-            df_consolidado = df_consolidado.copy()
-            df_consolidado['data_venda'] = pd.to_datetime(df_consolidado['data_venda'])
+    #         # Consolidar os DataFrames
+    #         df_consolidado = pd.concat(dfs_processados, ignore_index=True)
+    #     else:
+    #         # Se já temos o consolidado, apenas garantir que data_venda é datetime
+    #         df_consolidado = df_consolidado.copy()
+    #         df_consolidado['data_venda'] = pd.to_datetime(df_consolidado['data_venda'])
         
-        # Garantir que temos dados de vendas preparados
-        if df_vendas_preparado is None or df_vendas_preparado.empty:
-            print("DataFrame de vendas preparado está vazio. Impossível gerar visualizações.")
-            return None
+    #     # Garantir que temos dados de vendas preparados
+    #     if df_vendas_preparado is None or df_vendas_preparado.empty:
+    #         print("DataFrame de vendas preparado está vazio. Impossível gerar visualizações.")
+    #         return None
             
-        # Garantir que data_venda está no formato correto
-        df_vendas_preparado = df_vendas_preparado.copy()
-        df_vendas_preparado['data_venda'] = pd.to_datetime(df_vendas_preparado['data_venda'])
+    #     # Garantir que data_venda está no formato correto
+    #     df_vendas_preparado = df_vendas_preparado.copy()
+    #     df_vendas_preparado['data_venda'] = pd.to_datetime(df_vendas_preparado['data_venda'])
             
-        # Colocar id_produto de ambos para integer64
-        df_consolidado['id_produto'] = pd.to_numeric(df_consolidado['id_produto'], errors='coerce').astype('Int64')
-        df_vendas_preparado['id_produto'] = pd.to_numeric(df_vendas_preparado['id_produto'], errors='coerce').astype('Int64')
+    #     # Colocar id_produto de ambos para integer64
+    #     df_consolidado['id_produto'] = pd.to_numeric(df_consolidado['id_produto'], errors='coerce').astype('Int64')
+    #     df_vendas_preparado['id_produto'] = pd.to_numeric(df_vendas_preparado['id_produto'], errors='coerce').astype('Int64')
         
-        # Obter produtos únicos com vendas atípicas
-        produtos_atipicos = df_consolidado['id_produto'].unique()
+    #     # Obter produtos únicos com vendas atípicas
+    #     produtos_atipicos = df_consolidado['id_produto'].unique()
         
-        if len(produtos_atipicos) == 0:
-            print("Nenhum produto com vendas atípicas encontrado.")
-            return None
+    #     if len(produtos_atipicos) == 0:
+    #         print("Nenhum produto com vendas atípicas encontrado.")
+    #         return None
             
-        # Identificar produtos únicos
-        produtos_unicos = df_consolidado[['id_produto', 'produto']].drop_duplicates()
-        print(f"Encontrados {len(produtos_unicos)} produtos com vendas atípicas")
+    #     # Identificar produtos únicos
+    #     produtos_unicos = df_consolidado[['id_produto', 'produto']].drop_duplicates()
+    #     print(f"Encontrados {len(produtos_unicos)} produtos com vendas atípicas")
         
-        # Configurar estilo dos gráficos
-        sns.set(style="whitegrid")
-        plt.rcParams.update({'figure.figsize': (14, 8),
-                        'font.size': 12,
-                        'axes.titlesize': 16,
-                        'axes.labelsize': 14})
+    #     # Configurar estilo dos gráficos
+    #     sns.set(style="whitegrid")
+    #     plt.rcParams.update({'figure.figsize': (14, 8),
+    #                     'font.size': 12,
+    #                     'axes.titlesize': 16,
+    #                     'axes.labelsize': 14})
         
-        # Contadores para estatísticas
-        contador_empirico = 0
-        contador_tukey = 0
-        # contador_zscore = 0
-        contador_combinados = 0
+    #     # Contadores para estatísticas
+    #     contador_empirico = 0
+    #     contador_tukey = 0
+    #     # contador_zscore = 0
+    #     contador_combinados = 0
         
-        # Para cada produto, gerar uma visualização com o histórico completo
-        for _, row in produtos_unicos.iterrows():
-            id_produto = row['id_produto']
-            nome_produto = row['produto']
+    #     # Para cada produto, gerar uma visualização com o histórico completo
+    #     for _, row in produtos_unicos.iterrows():
+    #         id_produto = row['id_produto']
+    #         nome_produto = row['produto']
             
-            print(f"Gerando visualização para o produto: {nome_produto} (ID: {id_produto})")
+    #         print(f"Gerando visualização para o produto: {nome_produto} (ID: {id_produto})")
             
-            # Filtrar histórico do produto diretamente do df_vendas_preparado
-            historico_produto = df_vendas_preparado[df_vendas_preparado['id_produto'] == id_produto].copy()
+    #         # Filtrar histórico do produto diretamente do df_vendas_preparado
+    #         historico_produto = df_vendas_preparado[df_vendas_preparado['id_produto'] == id_produto].copy()
             
-            # Verificar se temos dados históricos
-            if historico_produto.empty:
-                print(f"Sem dados históricos para o produto {nome_produto}. Pulando...")
-                continue
+    #         # Verificar se temos dados históricos
+    #         if historico_produto.empty:
+    #             print(f"Sem dados históricos para o produto {nome_produto}. Pulando...")
+    #             continue
                 
-            # Filtrar dados das anomalias deste produto
-            anomalias_produto = df_consolidado[df_consolidado['id_produto'] == id_produto].copy()
+    #         # Filtrar dados das anomalias deste produto
+    #         anomalias_produto = df_consolidado[df_consolidado['id_produto'] == id_produto].copy()
             
-            # Verificar quais métodos detectaram anomalias para este produto
-            metodos_produto = []
-            if 'flag_empirico' in anomalias_produto.columns and anomalias_produto['flag_empirico'].sum() > 0:
-                metodos_produto.append('empirico')
-            if 'flag_tukey' in anomalias_produto.columns and anomalias_produto['flag_tukey'].sum() > 0:
-                metodos_produto.append('tukey')
-            # if 'flag_z_score' in anomalias_produto.columns and anomalias_produto['flag_z_score'].sum() > 0:
-            #     metodos_produto.append('zscore')
+    #         # Verificar quais métodos detectaram anomalias para este produto
+    #         metodos_produto = []
+    #         if 'flag_empirico' in anomalias_produto.columns and anomalias_produto['flag_empirico'].sum() > 0:
+    #             metodos_produto.append('empirico')
+    #         if 'flag_tukey' in anomalias_produto.columns and anomalias_produto['flag_tukey'].sum() > 0:
+    #             metodos_produto.append('tukey')
+    #         # if 'flag_z_score' in anomalias_produto.columns and anomalias_produto['flag_z_score'].sum() > 0:
+    #         #     metodos_produto.append('zscore')
             
-            # Determinar em qual pasta este produto será salvo
-            if len(metodos_produto) > 1:
-                diretorio_produto = diretorio_combinado
-                contador_combinados += 1
-            elif 'empirico' in metodos_produto:
-                diretorio_produto = diretorio_empirico
-                contador_empirico += 1
-            elif 'tukey' in metodos_produto:
-                diretorio_produto = diretorio_tukey
-                contador_tukey += 1
-            # elif 'zscore' in metodos_produto:
-            #     diretorio_produto = diretorio_zscore
-            #     contador_zscore += 1
-            else:
-                # Caso excepcional, não deveria ocorrer
-                diretorio_produto = diretorio_visualizacoes
+    #         # Determinar em qual pasta este produto será salvo
+    #         if len(metodos_produto) > 1:
+    #             diretorio_produto = diretorio_combinado
+    #             contador_combinados += 1
+    #         elif 'empirico' in metodos_produto:
+    #             diretorio_produto = diretorio_empirico
+    #             contador_empirico += 1
+    #         elif 'tukey' in metodos_produto:
+    #             diretorio_produto = diretorio_tukey
+    #             contador_tukey += 1
+    #         # elif 'zscore' in metodos_produto:
+    #         #     diretorio_produto = diretorio_zscore
+    #         #     contador_zscore += 1
+    #         else:
+    #             # Caso excepcional, não deveria ocorrer
+    #             diretorio_produto = diretorio_visualizacoes
 
-            # Criar figura
-            fig, ax = plt.subplots(figsize=(14, 8))
+    #         # Criar figura
+    #         fig, ax = plt.subplots(figsize=(14, 8))
             
-            # Preparar dados para visualização - agrupar vendas por dia
-            vendas_diarias = historico_produto.groupby('data_venda')['quantidade'].sum().reset_index()
+    #         # Preparar dados para visualização - agrupar vendas por dia
+    #         vendas_diarias = historico_produto.groupby('data_venda')['quantidade'].sum().reset_index()
             
-            # Plotar a série temporal de vendas completa (linha de base)
-            ax.plot(vendas_diarias['data_venda'], vendas_diarias['quantidade'], 
-                marker='o', linestyle='-', color='gray', alpha=0.6, 
-                markersize=4, label='Vendas Normais')
+    #         # Plotar a série temporal de vendas completa (linha de base)
+    #         ax.plot(vendas_diarias['data_venda'], vendas_diarias['quantidade'], 
+    #             marker='o', linestyle='-', color='gray', alpha=0.6, 
+    #             markersize=4, label='Vendas Normais')
             
-            # Preparar cores para cada método
-            metodos = {
-                'empirico': {'cor': 'red', 'marker': 'X', 'label': 'Método Empírico'},
-                'tukey': {'cor': 'blue', 'marker': '^', 'label': 'Método Tukey (IQR)'},
-                # 'zscore': {'cor': 'green', 'marker': 'D', 'label': 'Método Z-Score'}
-            }
+    #         # Preparar cores para cada método
+    #         metodos = {
+    #             'empirico': {'cor': 'red', 'marker': 'X', 'label': 'Método Empírico'},
+    #             'tukey': {'cor': 'blue', 'marker': '^', 'label': 'Método Tukey (IQR)'},
+    #             # 'zscore': {'cor': 'green', 'marker': 'D', 'label': 'Método Z-Score'}
+    #         }
             
-            # Adicionar informação adicional sobre métodos
-            metodos_usados = []
-            if 'flag_empirico' in anomalias_produto.columns and anomalias_produto['flag_empirico'].sum() > 0:
-                metodos_usados.append("Empírico")
-            if 'flag_tukey' in anomalias_produto.columns and anomalias_produto['flag_tukey'].sum() > 0:
-                metodos_usados.append("Tukey (IQR)")
-            # if 'flag_z_score' in anomalias_produto.columns and anomalias_produto['flag_z_score'].sum() > 0:
-            #     metodos_usados.append("Modified Z-Score")
+    #         # Adicionar informação adicional sobre métodos
+    #         metodos_usados = []
+    #         if 'flag_empirico' in anomalias_produto.columns and anomalias_produto['flag_empirico'].sum() > 0:
+    #             metodos_usados.append("Empírico")
+    #         if 'flag_tukey' in anomalias_produto.columns and anomalias_produto['flag_tukey'].sum() > 0:
+    #             metodos_usados.append("Tukey (IQR)")
+    #         # if 'flag_z_score' in anomalias_produto.columns and anomalias_produto['flag_z_score'].sum() > 0:
+    #         #     metodos_usados.append("Modified Z-Score")
                 
-            # Destacar pontos atípicos por método
-            for metodo, config in metodos.items():
-                flag_col = f'flag_{metodo}' if metodo != 'zscore' else 'flag_z_score'
+    #         # Destacar pontos atípicos por método
+    #         for metodo, config in metodos.items():
+    #             flag_col = f'flag_{metodo}' if metodo != 'zscore' else 'flag_z_score'
                 
-                if flag_col in anomalias_produto.columns:
-                    pontos_atipicos = anomalias_produto[anomalias_produto[flag_col] == True]
+    #             if flag_col in anomalias_produto.columns:
+    #                 pontos_atipicos = anomalias_produto[anomalias_produto[flag_col] == True]
                     
-                    if not pontos_atipicos.empty:
-                        # Plotar pontos atípicos
-                        scatter = ax.scatter(
-                            pontos_atipicos['data_venda'], 
-                            pontos_atipicos['quantidade_atipica'],
-                            color=config['cor'], 
-                            marker=config['marker'], 
-                            s=120, 
-                            alpha=0.8,
-                            label=f"{config['label']} ({len(pontos_atipicos)} eventos)"
-                        )
+    #                 if not pontos_atipicos.empty:
+    #                     # Plotar pontos atípicos
+    #                     scatter = ax.scatter(
+    #                         pontos_atipicos['data_venda'], 
+    #                         pontos_atipicos['quantidade_atipica'],
+    #                         color=config['cor'], 
+    #                         marker=config['marker'], 
+    #                         s=120, 
+    #                         alpha=0.8,
+    #                         label=f"{config['label']} ({len(pontos_atipicos)} eventos)"
+    #                     )
                         
-                        # Adicionar linhas verticais nas datas das vendas atípicas
-                        for _, point in pontos_atipicos.iterrows():
-                            ax.axvline(x=point['data_venda'], color=config['cor'], linestyle='--', alpha=0.3)
+    #                     # Adicionar linhas verticais nas datas das vendas atípicas
+    #                     for _, point in pontos_atipicos.iterrows():
+    #                         ax.axvline(x=point['data_venda'], color=config['cor'], linestyle='--', alpha=0.3)
                             
-                            # Anotação com quantidade
-                            ax.annotate(
-                                f"{int(point['quantidade_atipica'])}",
-                                xy=(point['data_venda'], point['quantidade_atipica']),
-                                xytext=(0, 8),
-                                textcoords='offset points',
-                                ha='center',
-                                fontsize=10,
-                                fontweight='bold',
-                                bbox=dict(boxstyle='round,pad=0.2', fc='white', alpha=0.7, ec=config['cor'])
-                            )
+    #                         # Anotação com quantidade
+    #                         ax.annotate(
+    #                             f"{int(point['quantidade_atipica'])}",
+    #                             xy=(point['data_venda'], point['quantidade_atipica']),
+    #                             xytext=(0, 8),
+    #                             textcoords='offset points',
+    #                             ha='center',
+    #                             fontsize=10,
+    #                             fontweight='bold',
+    #                             bbox=dict(boxstyle='round,pad=0.2', fc='white', alpha=0.7, ec=config['cor'])
+    #                         )
             
-            # Obter informações adicionais sobre o produto
-            info_texto = f"Estratégias utilizadas: {', '.join(metodos_usados)}\n"
+    #         # Obter informações adicionais sobre o produto
+    #         info_texto = f"Estratégias utilizadas: {', '.join(metodos_usados)}\n"
             
-            # Adicionar informação de estoque se disponível
-            if 'estoque_atualizado' in anomalias_produto.columns and not anomalias_produto['estoque_atualizado'].isna().all():
-                estoque = anomalias_produto['estoque_atualizado'].iloc[0]
-                info_texto += f"Estoque atual: {estoque} unidades\n"
+    #         # Adicionar informação de estoque se disponível
+    #         if 'estoque_atualizado' in anomalias_produto.columns and not anomalias_produto['estoque_atualizado'].isna().all():
+    #             estoque = anomalias_produto['estoque_atualizado'].iloc[0]
+    #             info_texto += f"Estoque atual: {estoque} unidades\n"
             
-            # Adicionar cobertura de dias se disponível
-            if 'cobertura_dias' in anomalias_produto.columns and not anomalias_produto['cobertura_dias'].isna().all():
-                cobertura = anomalias_produto['cobertura_dias'].iloc[0]
-                info_texto += f"Cobertura: {cobertura:.1f} dias\n"
+    #         # Adicionar cobertura de dias se disponível
+    #         if 'cobertura_dias' in anomalias_produto.columns and not anomalias_produto['cobertura_dias'].isna().all():
+    #             cobertura = anomalias_produto['cobertura_dias'].iloc[0]
+    #             info_texto += f"Cobertura: {cobertura:.1f} dias\n"
             
-            # Configurar título e rótulos
-            ax.set_title(f"Histórico de Vendas - {nome_produto}", fontsize=16)
-            ax.set_xlabel("Data", fontsize=14)
-            ax.set_ylabel("Quantidade Vendida", fontsize=14)
+    #         # Configurar título e rótulos
+    #         ax.set_title(f"Histórico de Vendas - {nome_produto}", fontsize=16)
+    #         ax.set_xlabel("Data", fontsize=14)
+    #         ax.set_ylabel("Quantidade Vendida", fontsize=14)
             
-            # Configurar formatação de datas no eixo x
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
-            ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
-            fig.autofmt_xdate(rotation=45)
+    #         # Configurar formatação de datas no eixo x
+    #         ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
+    #         ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
+    #         fig.autofmt_xdate(rotation=45)
             
-            # Adicionar grade
-            ax.grid(True, linestyle='--', alpha=0.6)
+    #         # Adicionar grade
+    #         ax.grid(True, linestyle='--', alpha=0.6)
             
-            # Adicionar legenda
-            ax.legend(loc='upper right')
+    #         # Adicionar legenda
+    #         ax.legend(loc='upper right')
             
-            # Adicionar caixa com informações
-            props = dict(boxstyle='round', facecolor='lightyellow', alpha=0.7)
-            ax.text(0.02, 0.97, info_texto, transform=ax.transAxes, fontsize=12,
-                    verticalalignment='top', bbox=props)
+    #         # Adicionar caixa com informações
+    #         props = dict(boxstyle='round', facecolor='lightyellow', alpha=0.7)
+    #         ax.text(0.02, 0.97, info_texto, transform=ax.transAxes, fontsize=12,
+    #                 verticalalignment='top', bbox=props)
             
-            # Ajustar layout
-            plt.tight_layout()
+    #         # Ajustar layout
+    #         plt.tight_layout()
             
-            # Salvar imagem no diretório correspondente
-            nome_arquivo = f"produto_{id_produto}_historico_vendas_atipicas.png"
-            caminho_arquivo = os.path.join(diretorio_produto, nome_arquivo)
-            plt.savefig(caminho_arquivo, dpi=150)
-            plt.close()
+    #         # Salvar imagem no diretório correspondente
+    #         nome_arquivo = f"produto_{id_produto}_historico_vendas_atipicas.png"
+    #         caminho_arquivo = os.path.join(diretorio_produto, nome_arquivo)
+    #         plt.savefig(caminho_arquivo, dpi=150)
+    #         plt.close()
             
-            print(f"Visualização salva em: {caminho_arquivo}")
+    #         print(f"Visualização salva em: {caminho_arquivo}")
         
-        # Gerar um gráfico resumo dos produtos com mais ocorrências atípicas para cada método
-        print("\nGerando visualizações resumo dos produtos com mais vendas atípicas por método...")
+    #     # Gerar um gráfico resumo dos produtos com mais ocorrências atípicas para cada método
+    #     print("\nGerando visualizações resumo dos produtos com mais vendas atípicas por método...")
         
-        # Para o método empírico
-        if 'flag_empirico' in df_consolidado.columns and df_consolidado['flag_empirico'].sum() > 0:
-            produtos_empirico = df_consolidado[df_consolidado['flag_empirico']].groupby(['id_produto', 'produto']).size().reset_index(name='total_atipicidades')
-            gerar_grafico_resumo(produtos_empirico, "Método Empírico", diretorio_empirico)
+    #     # Para o método empírico
+    #     if 'flag_empirico' in df_consolidado.columns and df_consolidado['flag_empirico'].sum() > 0:
+    #         produtos_empirico = df_consolidado[df_consolidado['flag_empirico']].groupby(['id_produto', 'produto']).size().reset_index(name='total_atipicidades')
+    #         gerar_grafico_resumo(produtos_empirico, "Método Empírico", diretorio_empirico)
         
-        # Para o método Tukey
-        if 'flag_tukey' in df_consolidado.columns and df_consolidado['flag_tukey'].sum() > 0:
-            produtos_tukey = df_consolidado[df_consolidado['flag_tukey']].groupby(['id_produto', 'produto']).size().reset_index(name='total_atipicidades')
-            gerar_grafico_resumo(produtos_tukey, "Método Tukey (IQR)", diretorio_tukey)
+    #     # Para o método Tukey
+    #     if 'flag_tukey' in df_consolidado.columns and df_consolidado['flag_tukey'].sum() > 0:
+    #         produtos_tukey = df_consolidado[df_consolidado['flag_tukey']].groupby(['id_produto', 'produto']).size().reset_index(name='total_atipicidades')
+    #         gerar_grafico_resumo(produtos_tukey, "Método Tukey (IQR)", diretorio_tukey)
         
-        # # Para o método Z-Score
-        # if 'flag_z_score' in df_consolidado.columns and df_consolidado['flag_z_score'].sum() > 0:
-        #     produtos_zscore = df_consolidado[df_consolidado['flag_z_score']].groupby(['id_produto', 'produto']).size().reset_index(name='total_atipicidades')
-        #     gerar_grafico_resumo(produtos_zscore, "Método Modified Z-Score", diretorio_zscore)
+    #     # # Para o método Z-Score
+    #     # if 'flag_z_score' in df_consolidado.columns and df_consolidado['flag_z_score'].sum() > 0:
+    #     #     produtos_zscore = df_consolidado[df_consolidado['flag_z_score']].groupby(['id_produto', 'produto']).size().reset_index(name='total_atipicidades')
+    #     #     gerar_grafico_resumo(produtos_zscore, "Método Modified Z-Score", diretorio_zscore)
         
-        # Gráfico resumo geral
-        produtos_contagem = df_consolidado.groupby(['id_produto', 'produto']).size().reset_index(name='total_atipicidades')
-        gerar_grafico_resumo(produtos_contagem, "Todos os Métodos", diretorio_visualizacoes)
+    #     # Gráfico resumo geral
+    #     produtos_contagem = df_consolidado.groupby(['id_produto', 'produto']).size().reset_index(name='total_atipicidades')
+    #     gerar_grafico_resumo(produtos_contagem, "Todos os Métodos", diretorio_visualizacoes)
         
-        # Imprimir estatísticas finais
-        print(f"\nEstatísticas de produtos com vendas atípicas:")
-        print(f"- Produtos detectados apenas pelo Método Empírico: {contador_empirico}")
-        print(f"- Produtos detectados apenas pelo Método Tukey: {contador_tukey}")
-        # print(f"- Produtos detectados apenas pelo Método Z-Score: {contador_zscore}")
-        print(f"- Produtos detectados por múltiplos métodos: {contador_combinados}")
-        print(f"- Total de produtos com vendas atípicas: {len(produtos_unicos)}")
+    #     # Imprimir estatísticas finais
+    #     print(f"\nEstatísticas de produtos com vendas atípicas:")
+    #     print(f"- Produtos detectados apenas pelo Método Empírico: {contador_empirico}")
+    #     print(f"- Produtos detectados apenas pelo Método Tukey: {contador_tukey}")
+    #     # print(f"- Produtos detectados apenas pelo Método Z-Score: {contador_zscore}")
+    #     print(f"- Produtos detectados por múltiplos métodos: {contador_combinados}")
+    #     print(f"- Total de produtos com vendas atípicas: {len(produtos_unicos)}")
         
-        print(f"\nVisualização de produtos atípicos concluída para o cliente {nome_cliente}")
-        print(f"Todas as visualizações foram salvas em: {diretorio_visualizacoes}")
+    #     print(f"\nVisualização de produtos atípicos concluída para o cliente {nome_cliente}")
+    #     print(f"Todas as visualizações foram salvas em: {diretorio_visualizacoes}")
         
-        return diretorio_visualizacoes
+    #     return diretorio_visualizacoes
     
-    def gerar_grafico_resumo(df_produtos, nome_metodo, diretorio):
-        """
-        Gera gráfico de barras com os produtos com mais vendas atípicas para um método específico
-        """
-        if df_produtos.empty:
-            print(f"Sem dados para gerar gráfico resumo para {nome_metodo}")
-            return
+    # def gerar_grafico_resumo(df_produtos, nome_metodo, diretorio):
+    #     """
+    #     Gera gráfico de barras com os produtos com mais vendas atípicas para um método específico
+    #     """
+    #     if df_produtos.empty:
+    #         print(f"Sem dados para gerar gráfico resumo para {nome_metodo}")
+    #         return
             
-        # Pegar os top 15 produtos com mais atipicidades
-        top_produtos = df_produtos.sort_values('total_atipicidades', ascending=False).head(15)
+    #     # Pegar os top 15 produtos com mais atipicidades
+    #     top_produtos = df_produtos.sort_values('total_atipicidades', ascending=False).head(15)
         
-        plt.figure(figsize=(14, 10))
+    #     plt.figure(figsize=(14, 10))
         
-        # Criar gráfico de barras com os produtos com mais atipicidades
-        barras = plt.barh(top_produtos['produto'], top_produtos['total_atipicidades'], color='darkred')
+    #     # Criar gráfico de barras com os produtos com mais atipicidades
+    #     barras = plt.barh(top_produtos['produto'], top_produtos['total_atipicidades'], color='darkred')
         
-        # Adicionar valores no final das barras
-        for i, v in enumerate(top_produtos['total_atipicidades']):
-            plt.text(v + 0.1, i, str(v), va='center')
+    #     # Adicionar valores no final das barras
+    #     for i, v in enumerate(top_produtos['total_atipicidades']):
+    #         plt.text(v + 0.1, i, str(v), va='center')
             
-        plt.title(f'Top 15 Produtos com Mais Vendas Atípicas - {nome_metodo}', fontsize=16)
-        plt.xlabel('Número de Ocorrências Atípicas', fontsize=14)
-        plt.ylabel('Produto', fontsize=14)
-        plt.grid(axis='x', linestyle='--', alpha=0.6)
+    #     plt.title(f'Top 15 Produtos com Mais Vendas Atípicas - {nome_metodo}', fontsize=16)
+    #     plt.xlabel('Número de Ocorrências Atípicas', fontsize=14)
+    #     plt.ylabel('Produto', fontsize=14)
+    #     plt.grid(axis='x', linestyle='--', alpha=0.6)
         
-        plt.tight_layout()
+    #     plt.tight_layout()
         
-        # Salvar gráfico resumo
-        caminho_resumo = os.path.join(diretorio, f"resumo_produtos_atipicos.png")
-        plt.savefig(caminho_resumo, dpi=150)
-        plt.close()
+    #     # Salvar gráfico resumo
+    #     caminho_resumo = os.path.join(diretorio, f"resumo_produtos_atipicos.png")
+    #     plt.savefig(caminho_resumo, dpi=150)
+    #     plt.close()
         
-        print(f"Visualização resumo para {nome_metodo} salva em: {caminho_resumo}")
+    #     print(f"Visualização resumo para {nome_metodo} salva em: {caminho_resumo}")
 
     def consolidar_resultados_analises(df_empirico=None, df_tukey=None, df_zscore=None):
         """

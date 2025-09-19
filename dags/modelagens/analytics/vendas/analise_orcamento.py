@@ -704,8 +704,8 @@ def gerar_relatorios_orcamento(nome_cliente):
         
     except Exception as e:
         print(f"Erro ao gerar Top 3 categorias: {e}")
-        print(traceback.format_exc())
+        print(traceback.format_exc())      
 
-gerar_relatorios_orcamento("add")
-        
-
+if __name__ == "__main__":
+    # Exemplo de execução para o cliente "add"
+    gerar_relatorios_orcamento("add")
