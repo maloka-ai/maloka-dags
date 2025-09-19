@@ -80,7 +80,7 @@ def gerar_analise_vendas_atipicas(nome_cliente):
         """Obtém os dados necessários para análise de vendas atípicas."""
         # Vendas e itens de venda
         query_vendas = f"""
-            SELECT v.id_venda, v.data_venda, v.id_cliente, v.status, v.id_loja
+            SELECT v.id_venda, v.data_venda, v.id_cliente, v.status, v.id_loja, v.situacao_venda, v.tipo_venda
             FROM {schema}.venda v
         """
         df_vendas = pd.read_sql(query_vendas, conn)
@@ -136,6 +136,7 @@ def gerar_analise_vendas_atipicas(nome_cliente):
         """Prepara e filtra os dados de vendas."""
         # Converter tipos
         df_vendas['id_venda'] = df_vendas['id_venda'].astype('int64')  # Converter para longint
+        df_vendas = df_vendas[(df_vendas['tipo_venda'] == 'PEDIDO') & (df_vendas['situacao_venda'] == 'CONCLUIDA')]
         df_venda_itens['id_venda'] = df_venda_itens['id_venda'].astype('int64')  # Converter para longint
         
         # Mesclar vendas e itens
