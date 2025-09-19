@@ -157,6 +157,9 @@ def gerar_analise_previsao_retorno(nome_cliente):
     # Converter a coluna 'data_venda' para datetime
     df_vendas['data_venda'] = pd.to_datetime(df_vendas['data_venda'])
 
+    #filtrar df_vendas para somente vendas que possuem a tipo_venda como PEDIDO e situacao_venda como CONCLUIDA
+    df_vendas = df_vendas[(df_vendas['tipo_venda'] == 'PEDIDO') & (df_vendas['situacao_venda'] == 'CONCLUIDA')]
+
     # Identificar clientes com pelo menos 6 compras
     contagem_compras = df_vendas.groupby('id_cliente').size()
     clientes_validos = contagem_compras[contagem_compras >= 6].index

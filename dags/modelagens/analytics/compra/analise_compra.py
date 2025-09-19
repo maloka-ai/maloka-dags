@@ -86,7 +86,7 @@ def gerar_relatorios_compra(nome_cliente):
         
         print("Consultando a tabela VENDAS...")
         query = f"""
-        SELECT id_venda, id_cliente, data_venda, total_venda
+        SELECT id_venda, id_cliente, data_venda, total_venda, situacao_venda, tipo_venda
         FROM {schema}.venda
         """
         
@@ -345,6 +345,9 @@ def gerar_relatorios_compra(nome_cliente):
     try:
         # Converter data_venda para datetime
         df_vendas['data_venda'] = pd.to_datetime(df_vendas['data_venda'])
+
+        #filtrar df_vendas para somente vendas que possuem a tipo_venda como PEDIDO e situacao_venda como CONCLUIDA
+        df_vendas = df_vendas[(df_vendas['tipo_venda'] == 'PEDIDO') & (df_vendas['situacao_venda'] == 'CONCLUIDA')]
         
         # Mesclar vendas e itens de venda
         df_vendas_completo = df_vendas.merge(

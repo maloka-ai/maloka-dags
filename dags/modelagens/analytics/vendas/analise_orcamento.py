@@ -254,6 +254,7 @@ def gerar_relatorios_orcamento(nome_cliente):
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
         print(f"Colunas disponíveis: {', '.join(df_vendas.columns)}")
+        #id_venda, id_cliente, id_vendedor, data_venda, total_venda, forma_pagamento, status, id_loja, valor_desconto_acrescimo_tmp, situacao_venda, tipo_venda
         
         # Exibir uma amostra dos dados
         print("\nPrimeiros 5 registros para verificação:")
@@ -275,6 +276,7 @@ def gerar_relatorios_orcamento(nome_cliente):
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
         print(f"Colunas disponíveis: {', '.join(df_clientes.columns)}")
+        #id_cliente, tipo, nome, email, telefone, endereco, cep, cidade, estado, identificador_compartilhado, data_cadastro
         
         # Exibir uma amostra dos dados
         print("\nPrimeiros 5 registros para verificação:")
@@ -299,6 +301,7 @@ def gerar_relatorios_orcamento(nome_cliente):
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
         print(f"Colunas disponíveis: {', '.join(df_venda_itens.columns)}")
+        #id_venda_item, id_venda, id_produto, quantidade, preco_bruto, desconto, total_item, tipo, acrescimo, id_servico
         
         # Exibir uma amostra dos dados
         print("\nPrimeiros 5 registros para verificação:")
@@ -320,10 +323,33 @@ def gerar_relatorios_orcamento(nome_cliente):
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
         print(f"Colunas disponíveis: {', '.join(df_lojas.columns)}")
+        #id_loja, nome, cep, numero, logradouro, bairro, cidade, estado, complemento, codigo
         
         # Exibir uma amostra dos dados
         print("\nPrimeiros 5 registros para verificação:")
         print(df_lojas.head())
+
+        ########################################################
+        # consulta da tabela categoria
+        ########################################################
+
+        print("Consultando a tabela categoria...")
+        query = f"SELECT * FROM {schema}.categoria"
+
+        # Carregar os dados diretamente em um DataFrame do pandas
+        df_categorias = pd.read_sql_query(query, conn)
+
+        # Informações sobre os dados
+        num_registros = len(df_categorias)
+        num_colunas = len(df_categorias.columns)
+
+        print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
+        print(f"Colunas disponíveis: {', '.join(df_categorias.columns)}")
+        #id_categoria, nome_categoria, descricao
+        
+        # Exibir uma amostra dos dados
+        print("\nPrimeiros 5 registros para verificação:")
+        print(df_categorias.head())
         
         # Fechar conexão
         conn.close()
@@ -419,6 +445,266 @@ def gerar_relatorios_orcamento(nome_cliente):
 
     print("\nRelatório de Clientes Ativos - Orçamentos x Pedidos Concluídos (últimos 6 meses):")
     print(df_clientes_orcamento_pedido.head())
+
+    ########################################################
+    # Top 3 categorias por cliente (ORÇAMENTOS)
+    ########################################################
+    print("\nGerando top 3 categorias por cliente para ORÇAMENTOS...")
+    
+    # Precisamos primeiro obter informações de categoria para cada produto
+    try:
+        # Reconectar ao banco
+        print("Reconectando ao banco de dados PostgreSQL...")
+        conn = psycopg2.connect(
+            host=DB_CONFIG_MALOKA['host'],
+            database=database,
+            user=DB_CONFIG_MALOKA['user'],
+            password=DB_CONFIG_MALOKA['password'],
+            port=DB_CONFIG_MALOKA['port']
+        )
+        
+        # Consultar tabela de produtos com suas categorias
+        print("Consultando a tabela produto...")
+        query = f"SELECT id_produto, id_categoria FROM {schema}.produto"
+        df_produtos = pd.read_sql_query(query, conn)
+        
+        # Fechar conexão
+        conn.close()
+        
+        # Mesclar produtos com os itens de venda para obter as categorias
+        df_vendas_itens_com_categoria = df_vendas_itens_6meses.merge(
+            df_produtos, 
+            on='id_produto', 
+            how='left'
+        )
+        
+        # Mesclar com df_categorias para obter os nomes das categorias
+        df_vendas_itens_completo = df_vendas_itens_com_categoria.merge(
+            df_categorias[['id_categoria', 'nome_categoria']], 
+            on='id_categoria', 
+            how='left'
+        )
+        
+        # Substituir valores nulos na categoria
+        df_vendas_itens_completo['nome_categoria'] = df_vendas_itens_completo['nome_categoria'].fillna('Sem Categoria')
+        
+        # Análise Top 3 categorias por cliente (Orçamentos)
+        df_categorias_orcamento = df_vendas_itens_completo[df_vendas_itens_completo['tipo_venda'] == 'ORCAMENTO']
+        
+        # Para cada cliente, calcular o valor total por categoria
+        df_categoria_cliente_orcamento = df_categorias_orcamento.groupby(['id_cliente', 'nome_categoria'])['total_item'].sum().reset_index()
+        
+        # Calcular o valor total de orçamentos por cliente para calcular percentuais
+        df_total_orcamento_cliente = df_categorias_orcamento.groupby('id_cliente')['total_item'].sum().reset_index()
+        df_total_orcamento_cliente.rename(columns={'total_item': 'total_orcamento_cliente'}, inplace=True)
+        
+        # Mesclar os totais com os valores por categoria
+        df_categoria_cliente_orcamento = df_categoria_cliente_orcamento.merge(
+            df_total_orcamento_cliente, 
+            on='id_cliente',
+            how='left'
+        )
+        
+        # Calcular percentual por categoria
+        df_categoria_cliente_orcamento['percentual'] = (df_categoria_cliente_orcamento['total_item'] / df_categoria_cliente_orcamento['total_orcamento_cliente']) * 100
+        
+        # Para cada cliente, obter as top 3 categorias
+        def get_top3_categorias(grupo):
+            return grupo.nlargest(3, 'total_item')
+        
+        df_top3_categorias_orcamento = df_categoria_cliente_orcamento.groupby('id_cliente').apply(get_top3_categorias).reset_index(drop=True)
+        
+        # Mesclar com informações do cliente
+        df_top3_categorias_orcamento_final = df_top3_categorias_orcamento.merge(
+            df_clientes_ativos[['id_cliente', 'nome']], 
+            on='id_cliente',
+            how='left'
+        )
+        
+        # Formatar os valores e ordenar
+        df_top3_categorias_orcamento_final = df_top3_categorias_orcamento_final[['nome', 'nome_categoria', 'total_item', 'percentual']]
+        df_top3_categorias_orcamento_final['total_item'] = df_top3_categorias_orcamento_final['total_item'].round(2)
+        df_top3_categorias_orcamento_final['percentual'] = df_top3_categorias_orcamento_final['percentual'].round(2)
+        df_top3_categorias_orcamento_final = df_top3_categorias_orcamento_final.sort_values(['nome', 'total_item'], ascending=[True, False])
+        
+        print("\nTop 3 categorias por cliente (ORÇAMENTOS):")
+        print(df_top3_categorias_orcamento_final.head(10))
+        
+        ########################################################
+        # Top 3 categorias por cliente (PEDIDOS)
+        ########################################################
+        print("\nGerando top 3 categorias por cliente para PEDIDOS...")
+        
+        # Análise Top 3 categorias por cliente (Pedidos)
+        df_categorias_pedido = df_vendas_itens_completo[
+            (df_vendas_itens_completo['tipo_venda'] == 'PEDIDO') &
+            (df_vendas_itens_completo['situacao_venda'] == 'CONCLUIDA')
+        ]
+        
+        # Para cada cliente, calcular o valor total por categoria
+        df_categoria_cliente_pedido = df_categorias_pedido.groupby(['id_cliente', 'nome_categoria'])['total_item'].sum().reset_index()
+        
+        # Calcular o valor total de pedidos por cliente para calcular percentuais
+        df_total_pedido_cliente = df_categorias_pedido.groupby('id_cliente')['total_item'].sum().reset_index()
+        df_total_pedido_cliente.rename(columns={'total_item': 'total_pedido_cliente'}, inplace=True)
+        
+        # Mesclar os totais com os valores por categoria
+        df_categoria_cliente_pedido = df_categoria_cliente_pedido.merge(
+            df_total_pedido_cliente, 
+            on='id_cliente',
+            how='left'
+        )
+        
+        # Calcular percentual por categoria
+        df_categoria_cliente_pedido['percentual'] = (df_categoria_cliente_pedido['total_item'] / df_categoria_cliente_pedido['total_pedido_cliente']) * 100
+        
+        # Para cada cliente, obter as top 3 categorias
+        df_top3_categorias_pedido = df_categoria_cliente_pedido.groupby('id_cliente').apply(get_top3_categorias).reset_index(drop=True)
+        
+        # Mesclar com informações do cliente
+        df_top3_categorias_pedido_final = df_top3_categorias_pedido.merge(
+            df_clientes_ativos[['id_cliente', 'nome']], 
+            on='id_cliente',
+            how='left'
+        )
+        
+        # Formatar os valores e ordenar
+        df_top3_categorias_pedido_final = df_top3_categorias_pedido_final[['nome', 'nome_categoria', 'total_item', 'percentual']]
+        df_top3_categorias_pedido_final['total_item'] = df_top3_categorias_pedido_final['total_item'].round(2)
+        df_top3_categorias_pedido_final['percentual'] = df_top3_categorias_pedido_final['percentual'].round(2)
+        df_top3_categorias_pedido_final = df_top3_categorias_pedido_final.sort_values(['nome', 'total_item'], ascending=[True, False])
+        
+        print("\nTop 3 categorias por cliente (PEDIDOS):")
+        print(df_top3_categorias_pedido_final.head(10))
+        
+        ########################################################
+        # Tabela consolidada de clientes com orçamentos, pedidos e top categorias
+        ########################################################
+        print("\nGerando tabela consolidada de clientes com orçamentos, pedidos e top categorias...")
+        
+        # Criar dicionários para armazenar as top categorias por cliente
+        top_categorias_orcamento = {}
+        top_categorias_pedido = {}
+        
+        # Processar top categorias de orçamento por cliente
+        for cliente_id in df_top3_categorias_orcamento['id_cliente'].unique():
+            categorias = df_top3_categorias_orcamento[df_top3_categorias_orcamento['id_cliente'] == cliente_id]
+            categorias_nomes = []
+            categorias_valores = []
+            categorias_percentuais = []
+            
+            for _, row in categorias.iterrows():
+                categorias_nomes.append(row['nome_categoria'])
+                categorias_valores.append(row['total_item'])
+                categorias_percentuais.append(row['percentual'])
+            
+            # Preencher com 'N/A' se não tiver 3 categorias
+            while len(categorias_nomes) < 3:
+                categorias_nomes.append("N/A")
+                categorias_valores.append(0)
+                categorias_percentuais.append(0)
+                
+            top_categorias_orcamento[cliente_id] = {
+                'nomes': categorias_nomes,
+                'valores': categorias_valores,
+                'percentuais': categorias_percentuais
+            }
+        
+        # Processar top categorias de pedido por cliente
+        for cliente_id in df_top3_categorias_pedido['id_cliente'].unique():
+            categorias = df_top3_categorias_pedido[df_top3_categorias_pedido['id_cliente'] == cliente_id]
+            categorias_nomes = []
+            categorias_valores = []
+            categorias_percentuais = []
+            
+            for _, row in categorias.iterrows():
+                categorias_nomes.append(row['nome_categoria'])
+                categorias_valores.append(row['total_item'])
+                categorias_percentuais.append(row['percentual'])
+            
+            # Preencher com 'N/A' se não tiver 3 categorias
+            while len(categorias_nomes) < 3:
+                categorias_nomes.append("N/A")
+                categorias_valores.append(0)
+                categorias_percentuais.append(0)
+                
+            top_categorias_pedido[cliente_id] = {
+                'nomes': categorias_nomes,
+                'valores': categorias_valores,
+                'percentuais': categorias_percentuais
+            }
+        
+        # Criar DataFrame consolidado
+        consolidado_data = []
+        
+        for _, row in df_clientes_orcamento_pedido.iterrows():
+            cliente_id = row['id_cliente']
+            nome_cliente = row['nome']
+            valor_orcado = row['valor_orcado_6meses']
+            valor_pedido = row['valor_pedido_concluido_6meses']
+            
+            # Obter top categorias de orçamento (ou valores vazios se não tiver)
+            default_vazio = {'nomes': ["N/A", "N/A", "N/A"], 'valores': [0, 0, 0], 'percentuais': [0, 0, 0]}
+            cat_orcamento = top_categorias_orcamento.get(cliente_id, default_vazio)
+            
+            # Obter top categorias de pedido (ou valores vazios se não tiver)
+            cat_pedido = top_categorias_pedido.get(cliente_id, default_vazio)
+            
+            # Calcular taxa de conversão (evitando divisão por zero)
+            taxa_conversao = round((valor_pedido / valor_orcado * 100), 2) if valor_orcado > 0 else 0
+            
+            # Adicionar linha ao DataFrame consolidado
+            consolidado_data.append({
+                'id_cliente': cliente_id,
+                'nome_cliente': nome_cliente,
+                'valor_orcado_6meses': round(valor_orcado, 2),
+                'valor_pedido_concluido_6meses': round(valor_pedido, 2),
+                'taxa_conversao': taxa_conversao,
+                # Categorias de orçamento separadas por nome, valor e percentual
+                'top1_categoria_orcamento_nome': cat_orcamento['nomes'][0],
+                'top1_categoria_orcamento_valor': round(cat_orcamento['valores'][0], 2),
+                'top1_categoria_orcamento_taxa': round(cat_orcamento['percentuais'][0], 1),
+                'top2_categoria_orcamento_nome': cat_orcamento['nomes'][1],
+                'top2_categoria_orcamento_valor': round(cat_orcamento['valores'][1], 2),
+                'top2_categoria_orcamento_taxa': round(cat_orcamento['percentuais'][1], 1),
+                'top3_categoria_orcamento_nome': cat_orcamento['nomes'][2],
+                'top3_categoria_orcamento_valor': round(cat_orcamento['valores'][2], 2),
+                'top3_categoria_orcamento_taxa': round(cat_orcamento['percentuais'][2], 1),
+                # Categorias de pedido separadas por nome, valor e percentual
+                'top1_categoria_pedido_nome': cat_pedido['nomes'][0],
+                'top1_categoria_pedido_valor': round(cat_pedido['valores'][0], 2),
+                'top1_categoria_pedido_taxa': round(cat_pedido['percentuais'][0], 1),
+                'top2_categoria_pedido_nome': cat_pedido['nomes'][1],
+                'top2_categoria_pedido_valor': round(cat_pedido['valores'][1], 2),
+                'top2_categoria_pedido_taxa': round(cat_pedido['percentuais'][1], 1),
+                'top3_categoria_pedido_nome': cat_pedido['nomes'][2],
+                'top3_categoria_pedido_valor': round(cat_pedido['valores'][2], 2),
+                'top3_categoria_pedido_taxa': round(cat_pedido['percentuais'][2], 1)
+            })
+        
+        # Criar DataFrame consolidado
+        df_consolidado = pd.DataFrame(consolidado_data)
+        
+        # Ordenar por valor de pedido (do maior para o menor)
+        df_consolidado = df_consolidado.sort_values('valor_orcado_6meses', ascending=False)
+
+        # Retirar linhas onde valor_orcado_6meses é igual a zero
+        df_consolidado = df_consolidado[df_consolidado['valor_orcado_6meses'] > 0]
+        
+        # Salvar o DataFrame consolidado em CSV
+        diretorio_cliente = os.path.join(diretorio_atual, 'relatorios')
+        os.makedirs(diretorio_cliente, exist_ok=True)
+        
+        nome_arquivo = os.path.join(diretorio_cliente, f'orcamento_x_pedido.csv')
+        df_consolidado.to_csv(nome_arquivo, index=False, sep=';', encoding='utf-8-sig')
+        
+        print(f"\nRelatório consolidado salvo em: {nome_arquivo}")
+        print("\nPrimeiras linhas do relatório consolidado:")
+        print(df_consolidado.head())
+        
+    except Exception as e:
+        print(f"Erro ao gerar Top 3 categorias: {e}")
+        print(traceback.format_exc())      
 
 if __name__ == "__main__":
     # Exemplo de execução para o cliente "add"

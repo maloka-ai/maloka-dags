@@ -351,6 +351,9 @@ def gerar_relatorios_estoque(nome_cliente):
     if not pd.api.types.is_datetime64_any_dtype(df_vendas['data_venda']):
         df_vendas['data_venda'] = pd.to_datetime(df_vendas['data_venda'])
 
+    #filtrar df_vendas para somente vendas que possuem a tipo_venda como PEDIDO e situacao_venda como CONCLUIDA
+    df_vendas = df_vendas[(df_vendas['tipo_venda'] == 'PEDIDO') & (df_vendas['situacao_venda'] == 'CONCLUIDA')]
+
     # Juntar as tabelas de vendas e itens de venda
     df_venda_itens_pedido = pd.merge(
         df_venda_itens,
