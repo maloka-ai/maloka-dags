@@ -339,6 +339,9 @@ def gerar_analise_cliente(nome_cliente, data_referencia=None):
 
     df_vendas['data_venda'] = pd.to_datetime(df_vendas['data_venda'])
 
+    #filtrar df_vendas para somente vendas que possuem a tipo_venda como PEDIDO e situacao_venda como CONCLUIDA
+    df_vendas = df_vendas[(df_vendas['tipo_venda'] == 'PEDIDO') & (df_vendas['situacao_venda'] == 'CONCLUIDA')]
+
     # MODIFICAÇÃO: Separar os dataframes de vendas se necessário
     if separar_pf_pj:
         print("Separando análises para pessoa física e jurídica...")

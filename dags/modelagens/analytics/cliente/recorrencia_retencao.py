@@ -278,6 +278,8 @@ def gerar_analise_recorrencia_retencao(nome_cliente):
 
     # Criar um DataFrame com ano, mês e cliente
     df_vendas['data_venda'] = pd.to_datetime(df_vendas['data_venda'])
+    #filtrar df_vendas para somente vendas que possuem a tipo_venda como PEDIDO e situacao_venda como CONCLUIDA
+    df_vendas = df_vendas[(df_vendas['tipo_venda'] == 'PEDIDO') & (df_vendas['situacao_venda'] == 'CONCLUIDA')]
     df_vendas['ano'] = df_vendas['data_venda'].dt.year
     df_vendas['mes'] = df_vendas['data_venda'].dt.month
     df_vendas['trimestre'] = (df_vendas['data_venda'].dt.month - 1) // 3 + 1

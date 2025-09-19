@@ -589,32 +589,50 @@ def gerar_relatorios_orcamento(nome_cliente):
         # Processar top categorias de orçamento por cliente
         for cliente_id in df_top3_categorias_orcamento['id_cliente'].unique():
             categorias = df_top3_categorias_orcamento[df_top3_categorias_orcamento['id_cliente'] == cliente_id]
-            categorias_info = []
+            categorias_nomes = []
+            categorias_valores = []
+            categorias_percentuais = []
             
             for _, row in categorias.iterrows():
-                categoria_info = f"{row['nome_categoria']}: {row['total_item']:.2f} ({row['percentual']:.1f}%)"
-                categorias_info.append(categoria_info)
+                categorias_nomes.append(row['nome_categoria'])
+                categorias_valores.append(row['total_item'])
+                categorias_percentuais.append(row['percentual'])
             
             # Preencher com 'N/A' se não tiver 3 categorias
-            while len(categorias_info) < 3:
-                categorias_info.append("N/A")
+            while len(categorias_nomes) < 3:
+                categorias_nomes.append("N/A")
+                categorias_valores.append(0)
+                categorias_percentuais.append(0)
                 
-            top_categorias_orcamento[cliente_id] = categorias_info
+            top_categorias_orcamento[cliente_id] = {
+                'nomes': categorias_nomes,
+                'valores': categorias_valores,
+                'percentuais': categorias_percentuais
+            }
         
         # Processar top categorias de pedido por cliente
         for cliente_id in df_top3_categorias_pedido['id_cliente'].unique():
             categorias = df_top3_categorias_pedido[df_top3_categorias_pedido['id_cliente'] == cliente_id]
-            categorias_info = []
+            categorias_nomes = []
+            categorias_valores = []
+            categorias_percentuais = []
             
             for _, row in categorias.iterrows():
-                categoria_info = f"{row['nome_categoria']}: {row['total_item']:.2f} ({row['percentual']:.1f}%)"
-                categorias_info.append(categoria_info)
+                categorias_nomes.append(row['nome_categoria'])
+                categorias_valores.append(row['total_item'])
+                categorias_percentuais.append(row['percentual'])
             
             # Preencher com 'N/A' se não tiver 3 categorias
-            while len(categorias_info) < 3:
-                categorias_info.append("N/A")
+            while len(categorias_nomes) < 3:
+                categorias_nomes.append("N/A")
+                categorias_valores.append(0)
+                categorias_percentuais.append(0)
                 
-            top_categorias_pedido[cliente_id] = categorias_info
+            top_categorias_pedido[cliente_id] = {
+                'nomes': categorias_nomes,
+                'valores': categorias_valores,
+                'percentuais': categorias_percentuais
+            }
         
         # Criar DataFrame consolidado
         consolidado_data = []
@@ -625,11 +643,15 @@ def gerar_relatorios_orcamento(nome_cliente):
             valor_orcado = row['valor_orcado_6meses']
             valor_pedido = row['valor_pedido_concluido_6meses']
             
-            # Obter top categorias de orçamento (ou lista vazia se não tiver)
-            cat_orcamento = top_categorias_orcamento.get(cliente_id, ["N/A", "N/A", "N/A"])
+            # Obter top categorias de orçamento (ou valores vazios se não tiver)
+            default_vazio = {'nomes': ["N/A", "N/A", "N/A"], 'valores': [0, 0, 0], 'percentuais': [0, 0, 0]}
+            cat_orcamento = top_categorias_orcamento.get(cliente_id, default_vazio)
             
-            # Obter top categorias de pedido (ou lista vazia se não tiver)
-            cat_pedido = top_categorias_pedido.get(cliente_id, ["N/A", "N/A", "N/A"])
+            # Obter top categorias de pedido (ou valores vazios se não tiver)
+            cat_pedido = top_categorias_pedido.get(cliente_id, default_vazio)
+            
+            # Calcular taxa de conversão (evitando divisão por zero)
+            taxa_conversao = round((valor_pedido / valor_orcado * 100), 2) if valor_orcado > 0 else 0
             
             # Adicionar linha ao DataFrame consolidado
             consolidado_data.append({
@@ -637,12 +659,27 @@ def gerar_relatorios_orcamento(nome_cliente):
                 'nome_cliente': nome_cliente,
                 'valor_orcado_6meses': round(valor_orcado, 2),
                 'valor_pedido_concluido_6meses': round(valor_pedido, 2),
-                'top1_categoria_orcamento': cat_orcamento[0] if len(cat_orcamento) > 0 else "N/A",
-                'top2_categoria_orcamento': cat_orcamento[1] if len(cat_orcamento) > 1 else "N/A",
-                'top3_categoria_orcamento': cat_orcamento[2] if len(cat_orcamento) > 2 else "N/A",
-                'top1_categoria_pedido': cat_pedido[0] if len(cat_pedido) > 0 else "N/A",
-                'top2_categoria_pedido': cat_pedido[1] if len(cat_pedido) > 1 else "N/A",
-                'top3_categoria_pedido': cat_pedido[2] if len(cat_pedido) > 2 else "N/A"
+                'taxa_conversao': taxa_conversao,
+                # Categorias de orçamento separadas por nome, valor e percentual
+                'top1_categoria_orcamento_nome': cat_orcamento['nomes'][0],
+                'top1_categoria_orcamento_valor': round(cat_orcamento['valores'][0], 2),
+                'top1_categoria_orcamento_taxa': round(cat_orcamento['percentuais'][0], 1),
+                'top2_categoria_orcamento_nome': cat_orcamento['nomes'][1],
+                'top2_categoria_orcamento_valor': round(cat_orcamento['valores'][1], 2),
+                'top2_categoria_orcamento_taxa': round(cat_orcamento['percentuais'][1], 1),
+                'top3_categoria_orcamento_nome': cat_orcamento['nomes'][2],
+                'top3_categoria_orcamento_valor': round(cat_orcamento['valores'][2], 2),
+                'top3_categoria_orcamento_taxa': round(cat_orcamento['percentuais'][2], 1),
+                # Categorias de pedido separadas por nome, valor e percentual
+                'top1_categoria_pedido_nome': cat_pedido['nomes'][0],
+                'top1_categoria_pedido_valor': round(cat_pedido['valores'][0], 2),
+                'top1_categoria_pedido_taxa': round(cat_pedido['percentuais'][0], 1),
+                'top2_categoria_pedido_nome': cat_pedido['nomes'][1],
+                'top2_categoria_pedido_valor': round(cat_pedido['valores'][1], 2),
+                'top2_categoria_pedido_taxa': round(cat_pedido['percentuais'][1], 1),
+                'top3_categoria_pedido_nome': cat_pedido['nomes'][2],
+                'top3_categoria_pedido_valor': round(cat_pedido['valores'][2], 2),
+                'top3_categoria_pedido_taxa': round(cat_pedido['percentuais'][2], 1)
             })
         
         # Criar DataFrame consolidado
@@ -650,12 +687,15 @@ def gerar_relatorios_orcamento(nome_cliente):
         
         # Ordenar por valor de pedido (do maior para o menor)
         df_consolidado = df_consolidado.sort_values('valor_orcado_6meses', ascending=False)
+
+        # Retirar linhas onde valor_orcado_6meses é igual a zero
+        df_consolidado = df_consolidado[df_consolidado['valor_orcado_6meses'] > 0]
         
         # Salvar o DataFrame consolidado em CSV
         diretorio_cliente = os.path.join(diretorio_atual, 'relatorios')
         os.makedirs(diretorio_cliente, exist_ok=True)
         
-        nome_arquivo = os.path.join(diretorio_cliente, f'consolidado_clientes.csv')
+        nome_arquivo = os.path.join(diretorio_cliente, f'orcamento_x_pedido.csv')
         df_consolidado.to_csv(nome_arquivo, index=False, sep=';', encoding='utf-8-sig')
         
         print(f"\nRelatório consolidado salvo em: {nome_arquivo}")
