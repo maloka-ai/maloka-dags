@@ -651,7 +651,7 @@ def gerar_relatorios_orcamento(nome_cliente):
             cat_pedido = top_categorias_pedido.get(cliente_id, default_vazio)
             
             # Calcular taxa de conversão (evitando divisão por zero)
-            taxa_conversao = round(1-(valor_orcado/(valor_pedido+valor_orcado)), 2) if valor_orcado > 0 else 0
+            taxa_conversao = round((1-(valor_orcado/(valor_pedido+valor_orcado))) * 100, 2) if valor_orcado > 0 else 0
             
             # Adicionar linha ao DataFrame consolidado
             consolidado_data.append({

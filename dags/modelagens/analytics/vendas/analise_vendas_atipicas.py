@@ -1,14 +1,10 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import matplotlib.dates as mdates
-from matplotlib.dates import DateFormatter
 from datetime import datetime
 import psycopg2
 import os
 import warnings
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime
 import sys
 import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
@@ -165,7 +161,7 @@ def gerar_analise_vendas_atipicas(nome_cliente):
         """Identifica vendas anômalas com base em z-score."""
         # Calcular média e desvio padrão da coluna 'quantidade'
         media = df['quantidade'].mean()
-        desvio_padrao = df['quantidade'].std()
+        desvio_padrao = np.std(df['quantidade'].values)
         
         # Se o desvio padrão for zero ou NaN, não há variação para calcular anomalias
         if desvio_padrao == 0 or pd.isna(desvio_padrao):
@@ -439,8 +435,8 @@ def gerar_analise_vendas_atipicas(nome_cliente):
                 continue
             
             # Calcular quartis e IQR
-            Q1 = vendas_produto['quantidade'].quantile(0.25)
-            Q3 = vendas_produto['quantidade'].quantile(0.75)
+            Q1 = np.percentile(vendas_produto['quantidade'].values, 25)
+            Q3 = np.percentile(vendas_produto['quantidade'].values, 75)
             IQR = Q3 - Q1
             
             # Definir limites
