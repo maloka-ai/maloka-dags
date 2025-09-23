@@ -23,7 +23,7 @@ class ModelagemManager:
         self.diretorio_base = os.path.dirname(os.path.abspath(__file__))
         
         # Configura o logger
-        self.configurar_logger()
+        # self.configurar_logger()
         
         # Mapeia todas as modelagens disponíveis
         self.modelagens = {
@@ -71,30 +71,31 @@ class ModelagemManager:
             ('vendas', 'atipicas'): [('compra', 'analise')],
         }
     
-    def configurar_logger(self):
-        """Configura o sistema de logging"""
-        log_dir = os.path.join(self.diretorio_base, 'logs')
-        os.makedirs(log_dir, exist_ok=True)
+    # def configurar_logger(self):
+    #     """Configura o sistema de logging"""
+    #     log_dir = os.path.join(self.diretorio_base, 'logs')
+    #     os.makedirs(log_dir, exist_ok=True)
         
-        # Nome do arquivo de log com timestamp
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        log_file = os.path.join(log_dir, f'atualizacao_{timestamp}.log')
+    #     # Nome do arquivo de log com timestamp
+    #     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    #     log_file = os.path.join(log_dir, f'atualizacao_{timestamp}.log')
         
-        # Configuração do logger
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_file, encoding='utf-8'),
-                logging.StreamHandler(sys.stdout)
-            ]
-        )
+    #     # Configuração do logger
+    #     logging.basicConfig(
+    #         level=logging.INFO,
+    #         format='%(asctime)s - %(levelname)s - %(message)s',
+    #         handlers=[
+    #             logging.FileHandler(log_file, encoding='utf-8'),
+    #             logging.StreamHandler(sys.stdout)
+    #         ]
+    #     )
         
-        self.logger = logging.getLogger('ModelagemManager')
+    #     self.logger = logging.getLogger('ModelagemManager')
     
     def listar_modelagens(self):
         """Lista todas as modelagens disponíveis"""
-        self.logger.info("Modelagens disponíveis:")
+        # self.logger.info("Modelagens disponíveis:")
+        print("Modelagens disponíveis:")
         
         for categoria, modelos in self.modelagens.items():
             print(f"\n[{categoria.upper()}]")
@@ -137,18 +138,21 @@ class ModelagemManager:
         """
         try:
             if categoria not in self.modelagens or nome not in self.modelagens[categoria]:
-                self.logger.error(f"Modelagem não encontrada: {categoria}.{nome}")
+                # self.logger.error(f"Modelagem não encontrada: {categoria}.{nome}")
+                print(f"Erro: Modelagem não encontrada: {categoria}.{nome}")
                 return False
             
             # Verifica regras especiais, a menos que esteja configurado para ignorá-las
             if not ignorar_regras:
                 pode_executar, mensagem = self.verificar_regras_especiais(categoria, nome)
                 if not pode_executar:
-                    self.logger.warning(f"Não foi possível executar {categoria}.{nome}: {mensagem}")
+                    # self.logger.warning(f"Não foi possível executar {categoria}.{nome}: {mensagem}")
+                    print(f"Aviso: Não foi possível executar {categoria}.{nome}: {mensagem}")
                     return False
             
             modulo_path = self.modelagens[categoria][nome]
-            self.logger.info(f"Executando {modulo_path}...")
+            # self.logger.info(f"Executando {modulo_path}...")
+            print(f"Executando {modulo_path}...")
             
             # Importa o módulo
             modulo = importlib.import_module(modulo_path)
@@ -173,37 +177,45 @@ class ModelagemManager:
                     if cliente_especifico:
                         # Executa a função apenas para o cliente específico
                         if cliente_especifico in CLIENTES:
-                            self.logger.info(f"Executando {nome_funcao} para o cliente {cliente_especifico}")
+                            # self.logger.info(f"Executando {nome_funcao} para o cliente {cliente_especifico}")
+                            print(f"Executando {nome_funcao} para o cliente {cliente_especifico}")
                             getattr(modulo, nome_funcao)(cliente_especifico)
                         else:
-                            self.logger.error(f"Cliente {cliente_especifico} não encontrado na configuração")
+                            # self.logger.error(f"Cliente {cliente_especifico} não encontrado na configuração")
+                            print(f"Erro: Cliente {cliente_especifico} não encontrado na configuração")
                             return False
                     else:
                         # Executa a função para cada cliente
                         for cliente in CLIENTES.keys():
-                            self.logger.info(f"Executando {nome_funcao} para o cliente {cliente}")
+                            # self.logger.info(f"Executando {nome_funcao} para o cliente {cliente}")
+                            print(f"Executando {nome_funcao} para o cliente {cliente}")
                             getattr(modulo, nome_funcao)(cliente)
                 else:
-                    self.logger.warning(f"Função {nome_funcao} não encontrada no módulo {modulo_path}")
+                    # self.logger.warning(f"Função {nome_funcao} não encontrada no módulo {modulo_path}")
+                    print(f"Aviso: Função {nome_funcao} não encontrada no módulo {modulo_path}")
             # Verifica se há uma função main ou run no módulo
             elif hasattr(modulo, 'main'):
                 # Para funções main/run, não temos como passar o cliente específico 
                 # a menos que seja modificado o código dessas funções
-                self.logger.warning(f"Módulo {modulo_path} tem função main() mas não suporta cliente específico")
+                # self.logger.warning(f"Módulo {modulo_path} tem função main() mas não suporta cliente específico")
+                print("Aviso: Módulo {modulo_path} tem função main() mas não suporta cliente específico")
                 modulo.main()
             elif hasattr(modulo, 'run'):
-                self.logger.warning(f"Módulo {modulo_path} tem função run() mas não suporta cliente específico")
+                # self.logger.warning(f"Módulo {modulo_path} tem função run() mas não suporta cliente específico")
+                print("Aviso: Módulo {modulo_path} tem função run() mas não suporta cliente específico")
                 modulo.run()
             else:
                 # Assume que o módulo executa automaticamente ao ser importado
-                self.logger.info(f"Módulo {modulo_path} não tem função principal mapeada, main() ou run()")
+                # self.logger.info(f"Módulo {modulo_path} não tem função principal mapeada, main() ou run()")
+                print(f"Aviso: Módulo {modulo_path} não tem função principal mapeada, main() ou run()")
             
-            self.logger.info(f"Execução de {modulo_path} concluída com sucesso!")
+            # self.logger.info(f"Execução de {modulo_path} concluída com sucesso!")
+            print(f"Execução de {modulo_path} concluída com sucesso!")
             return True
             
         except Exception as e:
-            self.logger.error(f"Erro ao executar {categoria}.{nome}: {str(e)}")
-            self.logger.error(traceback.format_exc())
+            # self.logger.error(f"Erro ao executar {categoria}.{nome}: {str(e)}")
+            # self.logger.error(traceback.format_exc())
             return False
     
     def executar_categoria(self, categoria):
@@ -217,10 +229,10 @@ class ModelagemManager:
             dict: Resultados de execução para cada modelagem
         """
         if categoria not in self.modelagens:
-            self.logger.error(f"Categoria não encontrada: {categoria}")
+            # self.logger.error(f"Categoria não encontrada: {categoria}")
             return {}
         
-        self.logger.info(f"Executando todas as modelagens da categoria: {categoria}")
+        # self.logger.info(f"Executando todas as modelagens da categoria: {categoria}")
         resultados = {}
         
         for nome in self.modelagens[categoria]:
@@ -241,11 +253,14 @@ class ModelagemManager:
         """
         if cliente_especifico:
             if cliente_especifico not in CLIENTES:
-                self.logger.error(f"Cliente {cliente_especifico} não encontrado na configuração")
+                print(f"Cliente {cliente_especifico} não encontrado na configuração")
+                # self.logger.error(f"Cliente {cliente_especifico} não encontrado na configuração")
                 return {}
-            self.logger.info(f"Iniciando atualização de todas as modelagens na ordem definida para o cliente {cliente_especifico}")
+            print(f"Iniciando atualização de todas as modelagens na ordem definida para o cliente {cliente_especifico}")
+            # self.logger.info(f"Iniciando atualização de todas as modelagens na ordem definida para o cliente {cliente_especifico}")
         else:
-            self.logger.info("Iniciando atualização de todas as modelagens na ordem definida para todos os clientes")
+            print("Iniciando atualização de todas as modelagens na ordem definida para todos os clientes")
+            # self.logger.info("Iniciando atualização de todas as modelagens na ordem definida para todos os clientes")
         resultados = {}
         
         # Inicializa o dicionário de resultados
@@ -260,7 +275,8 @@ class ModelagemManager:
                 for dep_cat, dep_nome in self.dependencias[(categoria, nome)]:
                     # Se a dependência existe mas falhou, pula esta modelagem
                     if dep_cat in resultados and dep_nome in resultados[dep_cat] and not resultados[dep_cat][dep_nome]:
-                        self.logger.warning(f"Pulando {categoria}.{nome} porque a dependência {dep_cat}.{dep_nome} falhou")
+                        # self.logger.warning(f"Pulando {categoria}.{nome} porque a dependência {dep_cat}.{dep_nome} falhou")
+                        print(f"Pulando {categoria}.{nome} porque a dependência {dep_cat}.{dep_nome} falhou")
                         resultados.setdefault(categoria, {})[nome] = False
                         continue
             
@@ -280,15 +296,19 @@ class ModelagemManager:
         Args:
             resultados (dict): Resultados da execução
         """
-        self.logger.info("\n" + "="*50)
-        self.logger.info("RESUMO DA EXECUÇÃO")
-        self.logger.info("="*50)
+        # self.logger.info("\n" + "="*50)
+        # self.logger.info("RESUMO DA EXECUÇÃO")
+        # self.logger.info("="*50)
+        print("\n" + "="*50)
+        print("RESUMO DA EXECUÇÃO")
+        print("="*50)
         
         sucessos = 0
         falhas = 0
         
         for categoria, modelos in resultados.items():
-            self.logger.info(f"\n[{categoria.upper()}]")
+            # self.logger.info(f"\n[{categoria.upper()}]")
+            print(f"\n[{categoria.upper()}]")
             
             for nome, resultado in modelos.items():
                 status = "✅ SUCESSO" if resultado else "❌ FALHA"
@@ -299,11 +319,16 @@ class ModelagemManager:
                 else:
                     falhas += 1
         
-        self.logger.info("\n" + "="*50)
-        self.logger.info(f"TOTAL: {sucessos + falhas} modelagens")
-        self.logger.info(f"SUCESSOS: {sucessos}")
-        self.logger.info(f"FALHAS: {falhas}")
-        self.logger.info("="*50)
+        # self.logger.info("\n" + "="*50)
+        # self.logger.info(f"TOTAL: {sucessos + falhas} modelagens")
+        # self.logger.info(f"SUCESSOS: {sucessos}")
+        # self.logger.info(f"FALHAS: {falhas}")
+        # self.logger.info("="*50)
+        print("\n" + "="*50)
+        print(f"TOTAL: {sucessos + falhas} modelagens")
+        print(f"SUCESSOS: {sucessos}")
+        print(f"FALHAS: {falhas}")
+        print("="*50)
 
 
     def verificar_dependencias(self, categoria, nome):
@@ -338,13 +363,15 @@ class ModelagemManager:
         Returns:
             bool: True se executou com sucesso, False caso contrário
         """
-        self.logger.info(f"Executando {categoria}.{nome} com suas dependências")
+        # self.logger.info(f"Executando {categoria}.{nome} com suas dependências")
+        print(f"Executando {categoria}.{nome} com suas dependências")
         
         # Verifica regras especiais para a modelagem atual
         if not ignorar_regras:
             pode_executar, mensagem = self.verificar_regras_especiais(categoria, nome)
             if not pode_executar:
-                self.logger.warning(f"Não foi possível executar {categoria}.{nome}: {mensagem}")
+                # self.logger.warning(f"Não foi possível executar {categoria}.{nome}: {mensagem}")
+                print(f"Não foi possível executar {categoria}.{nome}: {mensagem}")
                 return False
         
         # Verifica as dependências
@@ -353,7 +380,8 @@ class ModelagemManager:
         
         # Executa as dependências primeiro
         for dep_cat, dep_nome in dependencias:
-            self.logger.info(f"Executando dependência {dep_cat}.{dep_nome} para {categoria}.{nome}")
+            # self.logger.info(f"Executando dependência {dep_cat}.{dep_nome} para {categoria}.{nome}")
+            print(f"Executando dependência {dep_cat}.{dep_nome} para {categoria}.{nome}")
             
             # Verificar se a dependência é segmentação e se estamos ignorando regras para modelagem atual
             # Se for segmentação e a modelagem atual está sendo forçada, também ignoramos as regras para a segmentação
@@ -364,7 +392,8 @@ class ModelagemManager:
                                                cliente_especifico=cliente_especifico)
             
             if not resultado_dep:
-                self.logger.warning(f"Dependência {dep_cat}.{dep_nome} falhou, pulando {categoria}.{nome}")
+                # self.logger.warning(f"Dependência {dep_cat}.{dep_nome} falhou, pulando {categoria}.{nome}")
+                print(f"Dependência {dep_cat}.{dep_nome} falhou, pulando {categoria}.{nome}")
                 return False
         
         # Executa a modelagem atual
@@ -373,7 +402,8 @@ class ModelagemManager:
 
     def mostrar_ordem_execucao(self):
         """Mostra a ordem de execução das modelagens com suas dependências"""
-        self.logger.info("Ordem de execução das modelagens:")
+        # self.logger.info("Ordem de execução das modelagens:")
+        print("Ordem de execução das modelagens:")
         
         print("\nLista de modelagens na ordem de execução:")
         print("(Atualmente apenas 'vendas.atipicas' depende de 'compra.analise')\n")

@@ -9,14 +9,21 @@ Este repositório contém as DAGs e utilitários para construção de pipelines 
 ```text
 airflow/
 ├── config/
-│   └── settings.py            # Configuração global (nome do bucket)
+│   ├── settings.py            # Configuração global (nome do bucket)
+│   └── airflow_variables.py   # Variáveis do Airflow e utilitários de configuração
 ├── utils/
 │   ├── s3.py                  # Cliente S3 com conexão e upload/download
-│   └── layers.py              # Classes de camada (Transient, Bronze, Silver)
+│   ├── layers.py              # Classes de camada (Transient, Bronze, Silver)
+│   ├── database.py            # Cliente de banco de dados para conexões e consultas
+│   └── triggers.py            # Utilitários para triggers de validação de banco de dados
 └── dags/
-    └── add/                   # Pipeline "add" (exemplo); pode duplicar para outras empresas
-        ├── dag_add_pipeline.py       # DAG única com TaskGroup por camada
-        └── dag_add_gold_postgres.py  # Exemplo de DAG para camada gold e carga no Postgres
+    ├── add/                   # Pipeline "add" (exemplo); pode duplicar para outras empresas
+    │   ├── dag_add_pipeline.py       # DAG única com TaskGroup por camada
+    │   └── dag_add_gold_postgres.py  # Exemplo de DAG para camada gold e carga no Postgres
+    ├── modelagens/
+    │   ├── add_dag.py               # DAG de modelagens para o cliente ADD com validação de banco
+    │   └── analytics/               # Módulos de análises e modelagens
+    └── template_dag_com_validacao.py # Template de DAG com validação de banco
 
 ├── requirements.txt           # Dependências Python
 └── README.md                  # Este arquivo
@@ -28,6 +35,76 @@ airflow/
 
 1. **Sistema Operacional**: Ubuntu 24.04 ou similar
 2. **Python**: >= 3.12
+
+---
+
+## 🛠️ Recursos Principais
+
+### Validação de Banco de Dados para Execução de DAGs
+
+O sistema implementa um mecanismo de validação que verifica se o banco de dados do cliente está pronto para atualização antes de executar as DAGs. Isso é útil para evitar processamentos desnecessários quando o banco de dados ainda não foi atualizado.
+
+#### Como funciona:
+
+1. Antes de executar as tarefas principais, a DAG verifica na tabela `configuracao.log_processamento_dados` se existem dados importados que ainda não foram processados pelas modelagens
+2. A verificação procura o registro mais recente e valida se a coluna `data_execucao_modelagem` é `None`
+3. Se o banco não estiver pronto, a DAG aguarda e tenta novamente após um intervalo configurável (padrão: 15 minutos)
+4. Ao finalizar o processamento com sucesso, a DAG registra a data de execução da modelagem na mesma tabela
+
+#### Estrutura do Banco de Dados:
+
+A tabela `configuracao.log_processamento_dados` deve ter a seguinte estrutura:
+
+```sql
+CREATE TABLE configuracao.log_processamento_dados (
+    id_log SERIAL PRIMARY KEY,
+    cliente_id VARCHAR(50) NOT NULL,
+    data_importacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_execucao_modelagem TIMESTAMP,
+    mensagem TEXT
+);
+```
+
+#### Como usar em uma DAG:
+
+1. Importe as funções necessárias:
+```python
+from utils.triggers import (
+    criar_deferrable_task_atualizacao_banco, 
+    registrar_sucesso_atualizacao,
+    registrar_falha_atualizacao
+)
+```
+
+2. Crie uma task de validação:
+```python
+verificar_atualizacao = criar_deferrable_task_atualizacao_banco(
+    task_id='verificar_atualizacao_banco',
+    conn_id='sua_conexao_db',
+    cliente_id='id_do_cliente',
+    intervalo_verificacao_minutos=30
+)
+```
+
+3. Defina as tarefas para registro de sucesso e falha:
+```python
+# Registro de sucesso
+registrar_sucesso = PythonOperator(
+    task_id='registrar_sucesso',
+    python_callable=registrar_sucesso_atualizacao,
+    op_kwargs={'conn_id': 'sua_conexao_db', 'cliente_id': 'id_do_cliente'}
+)
+
+# Registro de falha
+registrar_falha = PythonOperator(
+    task_id='registrar_falha',
+    python_callable=registrar_falha_atualizacao,
+    op_kwargs={'conn_id': 'sua_conexao_db', 'cliente_id': 'id_do_cliente'},
+    trigger_rule='one_failed'
+)
+```
+
+4. Veja um exemplo completo em `dags/template_dag_com_validacao.py`
 3. **Apache Airflow**: >= 2.7.1
 4. **Banco de Metadados**: PostgreSQL (recomendado) ou SQLite (apenas dev)
 5. **Credenciais AWS**: Usuário IAM com permissão S3
