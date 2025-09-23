@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional
 # Adicionar caminho para importações
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.airflow_variables import DB_CONFIG_MALOKA
-from utils.database import verificar_atualizacao_permitida, registrar_execucao_modelagem
+from utils.database import registrar_execucao_modelagem, verificar_atualizacao_permitida
 
 # Tenta importar o sistema de logging do Airflow
 try:

@@ -385,25 +385,3 @@ def atualizar_todos_registros_pendentes(data_execucao=None, context=None) -> int
     except Exception as e:
         log_error(f"Erro ao atualizar registros pendentes: {str(e)}", context)
         return 0
-
-
-def registrar_tentativa_atualizacao(conn_id: str, cliente_id: str, status: str, 
-                                  mensagem: Optional[str] = None, context=None):
-    """
-    Registra uma tentativa de atualização na tabela log_processamento_dados
-    Esta função está mantida por compatibilidade, mas recomenda-se usar registrar_execucao_modelagem
-    
-    Args:
-        conn_id (str): ID da conexão do banco de dados no Airflow
-        cliente_id (str): Identificador do cliente
-        status (str): Status da atualização ('INICIADO', 'CONCLUIDO', 'ERRO', etc)
-        mensagem (str, opcional): Mensagem adicional sobre a atualização
-        context (dict, opcional): Contexto do Airflow para logging
-    """
-    log_warning(f"DEPRECATED: Use registrar_execucao_modelagem em vez de registrar_tentativa_atualizacao", context)
-    
-    # Se o status for CONCLUIDO, registrar a execução da modelagem
-    if status == "CONCLUIDO":
-        registrar_execucao_modelagem(conn_id, cliente_id, mensagem, context)
-    else:
-        log_info(f"Status {status} ignorado, apenas CONCLUIDO atualiza data_execucao_modelagem", context)
