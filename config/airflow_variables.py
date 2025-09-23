@@ -2,24 +2,24 @@ import os
 from dotenv import load_dotenv
 
 # Tentar importar Airflow somente se estiver disponível
-# try:
-#     from airflow.models import Variable
-#     from airflow.hooks.base import BaseHook
-#     AIRFLOW_AVAILABLE = True
-# except ImportError:
-#     AIRFLOW_AVAILABLE = False
+try:
+    from airflow.models import Variable
+    from airflow.hooks.base import BaseHook
+    AIRFLOW_AVAILABLE = True
+except ImportError:
+    AIRFLOW_AVAILABLE = False
 
 # Forçar Airflow a não estar disponível para execução local
-AIRFLOW_AVAILABLE = False
-print(f"Airflow disponível: {AIRFLOW_AVAILABLE}")
+# AIRFLOW_AVAILABLE = False
+# print(f"Airflow disponível: {AIRFLOW_AVAILABLE}")
 
 def get_airflow_variable(var_name, default=None):
-    # if AIRFLOW_AVAILABLE:
-    #     try:
-    #         return Variable.get(var_name)
-    #     except Exception:
-    #         return default
-    # Como forçamos AIRFLOW_AVAILABLE = False, esta função sempre retornará o valor padrão
+    if AIRFLOW_AVAILABLE:
+        try:
+            return Variable.get(var_name)
+        except Exception:
+            return default
+        
     return default
 
 def get_variable(var_name, default=None):
