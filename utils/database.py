@@ -229,6 +229,164 @@ def registrar_execucao_modelagem(conn_id=None, cliente_id: str = None, mensagem:
         log_error(f"Erro ao registrar execução de modelagem: {str(e)}", context)
         
         
+def verificar_atualizacao_permitida(cliente_id: str, timeout_minutos: int = 15, context=None) -> bool:
+    """
+    Verifica se existe um registro com data_execucao_modelagem como None para o cliente especificado
+    e que tenha sido importado há pelo menos timeout_minutos.
+    
+    Args:
+        cliente_id (str): Identificador do cliente
+        timeout_minutos (int): Tempo mínimo em minutos desde a importação para permitir processamento
+        context (dict, opcional): Contexto do Airflow para logging
+        
+    Returns:
+        bool: True se existir um registro que pode ser processado, False caso contrário
+    """
+    log_info(f"Verificando se cliente {cliente_id} possui dados não processados e importados há mais de {timeout_minutos} minutos", context)
+    
+    # Usa diretamente DB_CONFIG_MALOKA
+    db_client = DatabaseClient(DB_CONFIG_MALOKA, context=context)
+    
+    # Query para verificar se existem dados não processados
+    query = """
+    SELECT 
+        id_log,
+        data_importacao
+    FROM 
+        configuracao.log_processamento_dados
+    WHERE 
+        cliente_id = %(cliente_id)s
+        AND data_execucao_modelagem IS NULL
+        AND data_importacao < (CURRENT_TIMESTAMP - INTERVAL '%(timeout_minutos)s minutes')
+    ORDER BY 
+        data_importacao DESC
+    LIMIT 1
+    """
+    
+    try:
+        df = db_client.execute_query(query, params={
+            "cliente_id": cliente_id,
+            "timeout_minutos": timeout_minutos
+        })
+        
+        if df.empty:
+            log_info(f"Nenhum registro pendente de processamento encontrado para o cliente {cliente_id}", context)
+            return False
+            
+        log_info(f"Encontrado registro com data_importacao = {df['data_importacao'].iloc[0]} para o cliente {cliente_id}, pronto para processamento", context)
+        return True
+        
+    except Exception as e:
+        log_error(f"Erro ao verificar registros pendentes: {str(e)}", context)
+        return False
+
+
+def verificar_e_processar_registros_pendentes(context=None) -> Dict[str, int]:
+    """
+    Verifica todos os registros com data_execucao_modelagem nulo e retorna um dicionário
+    com os clientes que possuem registros pendentes.
+    
+    Args:
+        context (dict, opcional): Contexto do Airflow para logging
+        
+    Returns:
+        Dict[str, int]: Dicionário com cliente_id como chave e quantidade de registros pendentes como valor
+    """
+    log_info("Verificando todos os registros pendentes de processamento", context)
+    
+    # Usa diretamente DB_CONFIG_MALOKA
+    db_client = DatabaseClient(DB_CONFIG_MALOKA, context=context)
+    
+    # Query para buscar todos os clientes com registros pendentes
+    query = """
+    SELECT 
+        cliente_id,
+        COUNT(*) as registros_pendentes
+    FROM 
+        configuracao.log_processamento_dados
+    WHERE 
+        data_execucao_modelagem IS NULL
+    GROUP BY 
+        cliente_id
+    ORDER BY 
+        cliente_id
+    """
+    
+    try:
+        df = db_client.execute_query(query)
+        
+        if df.empty:
+            log_info("Nenhum registro pendente de processamento encontrado", context)
+            return {}
+            
+        # Converte o DataFrame para um dicionário
+        clientes_pendentes = df.set_index('cliente_id')['registros_pendentes'].to_dict()
+        
+        log_info(f"Encontrados {len(clientes_pendentes)} clientes com registros pendentes: {clientes_pendentes}", context)
+        return clientes_pendentes
+        
+    except Exception as e:
+        log_error(f"Erro ao verificar registros pendentes: {str(e)}", context)
+        return {}
+
+
+def atualizar_todos_registros_pendentes(data_execucao=None, context=None) -> int:
+    """
+    Atualiza todos os registros com data_execucao_modelagem nulo para a data especificada
+    ou a data atual se nenhuma for fornecida.
+    
+    Args:
+        data_execucao (datetime, opcional): Data a ser usada para atualização, usa a atual se None
+        context (dict, opcional): Contexto do Airflow para logging
+        
+    Returns:
+        int: Número de registros atualizados
+    """
+    log_info("Atualizando todos os registros pendentes de processamento", context)
+    
+    # Usa a data atual se nenhuma for fornecida
+    if data_execucao is None:
+        data_execucao = datetime.now()
+        
+    # Usa diretamente DB_CONFIG_MALOKA
+    db_client = DatabaseClient(DB_CONFIG_MALOKA, context=context)
+    
+    # Query para atualizar todos os registros pendentes
+    query = """
+    UPDATE 
+        configuracao.log_processamento_dados
+    SET 
+        data_execucao_modelagem = %(data_execucao)s
+    WHERE 
+        data_execucao_modelagem IS NULL
+    """
+    
+    try:
+        # Para contar quantos registros foram atualizados, primeiro contamos os pendentes
+        count_query = """
+        SELECT COUNT(*) as total_pendentes
+        FROM configuracao.log_processamento_dados
+        WHERE data_execucao_modelagem IS NULL
+        """
+        
+        count_df = db_client.execute_query(count_query)
+        total_pendentes = count_df['total_pendentes'].iloc[0] if not count_df.empty else 0
+        
+        if total_pendentes == 0:
+            log_info("Nenhum registro pendente para atualização", context)
+            return 0
+            
+        # Executa a atualização
+        db_client.execute_query(query, params={"data_execucao": data_execucao})
+        
+        log_info(f"Atualizados {total_pendentes} registros pendentes com a data {data_execucao}", context)
+        return total_pendentes
+        
+    except Exception as e:
+        log_error(f"Erro ao atualizar registros pendentes: {str(e)}", context)
+        return 0
+
+
 def registrar_tentativa_atualizacao(conn_id: str, cliente_id: str, status: str, 
                                   mensagem: Optional[str] = None, context=None):
     """

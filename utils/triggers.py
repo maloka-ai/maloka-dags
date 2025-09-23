@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional
 # Adicionar caminho para importações
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.airflow_variables import DB_CONFIG_MALOKA
-from .database import verificar_atualizacao_permitida, registrar_tentativa_atualizacao
+from utils.database import verificar_atualizacao_permitida, registrar_execucao_modelagem
 
 # Tenta importar o sistema de logging do Airflow
 try:
@@ -157,9 +157,7 @@ class BancoDadosAtualizadoTrigger(BaseTrigger):
             "message": mensagem
         })
 
-
 # Funções auxiliares para uso em DAGs
-
 def criar_deferrable_task_atualizacao_banco(
     task_id: str,
     conn_id=None,  # Mantido para compatibilidade
@@ -223,7 +221,6 @@ def registrar_sucesso_atualizacao(conn_id=None, cliente_id: str = None, **kwargs
         conn_id (str, opcional): Mantido para compatibilidade
         cliente_id (str): Identificador do cliente
     """
-    from .database import registrar_execucao_modelagem
     
     context = kwargs.get('context', {})
     log_info(f"Registrando conclusão bem-sucedida da modelagem para o cliente {cliente_id}", context)
