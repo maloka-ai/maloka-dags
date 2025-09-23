@@ -121,7 +121,8 @@ with DAG(
     )
     
     # Definir a sequência das tarefas
-    verificar_atualizacao >> [executar_modelagens, aguardar_banco]
+    verificar_atualizacao >> executar_modelagens
+    verificar_atualizacao >> aguardar_banco
     executar_modelagens >> registrar_sucesso
     executar_modelagens >> registrar_falha
     
