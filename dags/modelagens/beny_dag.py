@@ -80,6 +80,7 @@ with DAG(
         task_id='verificar_atualizacao_banco',
         cliente_id=CLIENTE_ID,
         intervalo_verificacao_minutos=INTERVALO_VERIFICACAO_MIN,
+        dag=dag,
         params={
             'success_task_id': 'executar_modelagens_beny',
             'wait_task_id': 'aguardar_banco_atualizado'
