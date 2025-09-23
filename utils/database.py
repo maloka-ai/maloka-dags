@@ -8,21 +8,60 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import sys
 import os
+import logging
 
 # Adicionar caminho para importações
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.airflow_variables import DB_CONFIG_MALOKA
 
+# Tenta importar o sistema de logging do Airflow
+try:
+    from utils.airflow_logging import configurar_logger, log_task_info
+    AIRFLOW_LOGGER_DISPONIVEL = True
+except ImportError:
+    AIRFLOW_LOGGER_DISPONIVEL = False
+
+# Configura o logger
+logger = logging.getLogger(__name__)
+
+# Funções auxiliares para logging
+def log_info(mensagem, context=None):
+    """Registra uma mensagem de log informativa"""
+    if AIRFLOW_LOGGER_DISPONIVEL and context:
+        log_task_info(context, mensagem, nivel="info")
+    else:
+        logger.info(mensagem)
+        print(mensagem)
+
+def log_warning(mensagem, context=None):
+    """Registra uma mensagem de log de aviso"""
+    if AIRFLOW_LOGGER_DISPONIVEL and context:
+        log_task_info(context, mensagem, nivel="warning")
+    else:
+        logger.warning(mensagem)
+        print(f"AVISO: {mensagem}")
+
+def log_error(mensagem, context=None):
+    """Registra uma mensagem de log de erro"""
+    if AIRFLOW_LOGGER_DISPONIVEL and context:
+        log_task_info(context, mensagem, nivel="error")
+    else:
+        logger.error(mensagem)
+        print(f"ERRO: {mensagem}")
+
+
 class DatabaseClient:
     """Cliente para conexão com banco de dados"""
     
-    def __init__(self, conn_id_or_config=None):
+    def __init__(self, conn_id_or_config=None, context=None):
         """
         Inicializa a conexão com o banco de dados
         
         Args:
             conn_id_or_config: ID da conexão no Airflow ou diretamente a configuração do banco
+            context: Contexto do Airflow (para logging)
         """
+        self.context = context
         self.config = None
         self.conn_id = None
         
@@ -59,75 +98,79 @@ class DatabaseClient:
             pd.DataFrame: DataFrame com o resultado da query
         """
         engine = create_engine(self.get_connection_uri())
+        query_desc = query.strip().split('\n')[0][:50] + "..." if len(query) > 50 else query
+        log_info(f"Executando query: {query_desc}", self.context)
         
         try:
-            return pd.read_sql(query, engine, params=params)
+            df = pd.read_sql(query, engine, params=params)
+            log_info(f"Query executada com sucesso. Registros retornados: {len(df)}", self.context)
+            return df
+        except Exception as e:
+            log_error(f"Erro ao executar query: {str(e)}", self.context)
+            raise
         finally:
             engine.dispose()
 
 
-def verificar_atualizacao_permitida(conn_id=None, cliente_id: str = None, timeout_minutos: int = 15) -> bool:
+def atualizar_status_processamento(cliente_id: str, context=None) -> bool:
     """
-    Verifica se é permitido realizar uma atualização para o cliente específico
-    verificando a tabela log_processamento_dados no schema configuracao
-    
-    Verifica se o registro mais recente tem data_execucao_modelagem como None.
-    Se sim, permite a atualização.
+    Atualiza o status de processamento para o cliente, marcando data_execucao_modelagem com a data/hora atual
     
     Args:
-        conn_id (str, opcional): Parâmetro mantido para compatibilidade
-        cliente_id (str): Identificador do cliente 
-        timeout_minutos (int, opcional): Tempo de espera em minutos para nova tentativa. Padrão: 15
+        cliente_id (str): Identificador do cliente
+        context (dict, opcional): Contexto do Airflow para logging
         
     Returns:
-        bool: True se a atualização for permitida, False caso contrário
+        bool: True se a atualização foi bem-sucedida, False caso contrário
     """
-    # Usa diretamente DB_CONFIG_MALOKA
-    db_client = DatabaseClient(DB_CONFIG_MALOKA)
+    log_info(f"Atualizando status de processamento para o cliente {cliente_id}", context)
     
-    query = """
+    # Usa diretamente DB_CONFIG_MALOKA
+    db_client = DatabaseClient(DB_CONFIG_MALOKA, context=context)
+    
+    # Query para buscar o último registro com data_execucao_modelagem nula
+    select_query = """
     SELECT 
-        id_log,
-        data_importacao,
-        data_execucao_modelagem
+        id_log 
     FROM 
         configuracao.log_processamento_dados
     WHERE 
         cliente_id = %(cliente_id)s
+        AND data_execucao_modelagem IS NULL
     ORDER BY 
         data_importacao DESC
     LIMIT 1
     """
     
     try:
-        df = db_client.execute_query(query, params={"cliente_id": cliente_id})
+        df = db_client.execute_query(select_query, params={"cliente_id": cliente_id})
         
         if df.empty:
-            # Se não houver registro para o cliente, não permitir atualização
-            # pois não houve importação de dados
-            print(f"Nenhum registro de importação encontrado para o cliente {cliente_id}")
+            log_warning(f"Nenhum registro de importação pendente encontrado para o cliente {cliente_id}", context)
             return False
             
-        # Verificar se data_execucao_modelagem é None
-        data_execucao = df['data_execucao_modelagem'].iloc[0]
-        data_importacao = df['data_importacao'].iloc[0]
+        id_log = df['id_log'].iloc[0]
         
-        # Se data_execucao_modelagem é None, significa que os dados foram importados mas
-        # ainda não foram processados pelas modelagens
-        if data_execucao is None:
-            print(f"Cliente {cliente_id} tem dados importados em {data_importacao} aguardando processamento")
-            return True
-        else:
-            print(f"Cliente {cliente_id} já tem modelagens processadas em {data_execucao} para a importação de {data_importacao}")
-            return False
+        # Query para atualizar o registro
+        update_query = """
+        UPDATE 
+            configuracao.log_processamento_dados
+        SET 
+            data_execucao_modelagem = CURRENT_TIMESTAMP
+        WHERE 
+            id_log = %(id_log)s
+        """
+        
+        db_client.execute_query(update_query, params={"id_log": id_log})
+        log_info(f"Status de processamento atualizado com sucesso para o cliente {cliente_id} (log_id: {id_log})", context)
+        return True
         
     except Exception as e:
-        # Em caso de erro na consulta, logar o erro e bloquear a atualização para segurança
-        print(f"Erro ao verificar status de atualização: {str(e)}")
+        log_error(f"Erro ao atualizar status de processamento: {str(e)}", context)
         return False
 
 
-def registrar_execucao_modelagem(conn_id=None, cliente_id: str = None, mensagem: Optional[str] = None):
+def registrar_execucao_modelagem(conn_id=None, cliente_id: str = None, mensagem: Optional[str] = None, context=None):
     """
     Registra a data de execução da modelagem na tabela log_processamento_dados
     para o registro mais recente do cliente
@@ -136,9 +179,12 @@ def registrar_execucao_modelagem(conn_id=None, cliente_id: str = None, mensagem:
         conn_id (str, opcional): Parâmetro mantido para compatibilidade
         cliente_id (str): Identificador do cliente
         mensagem (str, opcional): Mensagem adicional sobre a execução
+        context (dict, opcional): Contexto do Airflow para logging
     """
+    log_info(f"Registrando execução de modelagem para o cliente {cliente_id}", context)
+    
     # Usa diretamente DB_CONFIG_MALOKA
-    db_client = DatabaseClient(DB_CONFIG_MALOKA)
+    db_client = DatabaseClient(DB_CONFIG_MALOKA, context=context)
     
     # Consulta para obter o id_log mais recente
     query_select = """
@@ -163,31 +209,28 @@ def registrar_execucao_modelagem(conn_id=None, cliente_id: str = None, mensagem:
         df = db_client.execute_query(query_select, params={"cliente_id": cliente_id})
         
         if df.empty:
-            print(f"Nenhum registro encontrado para o cliente {cliente_id}")
+            log_warning(f"Nenhum registro encontrado para o cliente {cliente_id}", context)
             return
             
         id_log = df['id_log'].iloc[0]
         
         # Atualizar o registro com a data de execução
-        conn = db_client.get_connection()
-        engine = create_engine(conn.get_uri())
+        log_info(f"Atualizando registro id_log {id_log} com data de execução atual", context)
+        current_time = datetime.now()
         
-        params = {
+        db_client.execute_query(query_update, params={
             "id_log": id_log,
-            "data_execucao": datetime.now()
-        }
+            "data_execucao": current_time
+        })
         
-        with engine.begin() as connection:
-            connection.execute(text(query_update), params)
-            
-        print(f"Registro de execução de modelagem atualizado para o cliente {cliente_id}, id_log {id_log}")
+        log_info(f"Registro de execução de modelagem atualizado para o cliente {cliente_id}, id_log {id_log} com timestamp {current_time}", context)
             
     except Exception as e:
-        print(f"Erro ao registrar execução de modelagem: {str(e)}")
+        log_error(f"Erro ao registrar execução de modelagem: {str(e)}", context)
         
         
 def registrar_tentativa_atualizacao(conn_id: str, cliente_id: str, status: str, 
-                                  mensagem: Optional[str] = None):
+                                  mensagem: Optional[str] = None, context=None):
     """
     Registra uma tentativa de atualização na tabela log_processamento_dados
     Esta função está mantida por compatibilidade, mas recomenda-se usar registrar_execucao_modelagem
@@ -197,11 +240,12 @@ def registrar_tentativa_atualizacao(conn_id: str, cliente_id: str, status: str,
         cliente_id (str): Identificador do cliente
         status (str): Status da atualização ('INICIADO', 'CONCLUIDO', 'ERRO', etc)
         mensagem (str, opcional): Mensagem adicional sobre a atualização
+        context (dict, opcional): Contexto do Airflow para logging
     """
-    print(f"DEPRECATED: Use registrar_execucao_modelagem em vez de registrar_tentativa_atualizacao")
+    log_warning(f"DEPRECATED: Use registrar_execucao_modelagem em vez de registrar_tentativa_atualizacao", context)
     
     # Se o status for CONCLUIDO, registrar a execução da modelagem
     if status == "CONCLUIDO":
-        registrar_execucao_modelagem(conn_id, cliente_id, mensagem)
+        registrar_execucao_modelagem(conn_id, cliente_id, mensagem, context)
     else:
-        print(f"Status {status} ignorado, apenas CONCLUIDO atualiza data_execucao_modelagem")
+        log_info(f"Status {status} ignorado, apenas CONCLUIDO atualiza data_execucao_modelagem", context)

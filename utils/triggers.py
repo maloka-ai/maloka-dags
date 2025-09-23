@@ -8,6 +8,7 @@ from airflow.exceptions import AirflowException
 import asyncio
 import os
 import sys
+import logging
 from datetime import timedelta
 from typing import Dict, Any, Optional
 
@@ -15,6 +16,41 @@ from typing import Dict, Any, Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.airflow_variables import DB_CONFIG_MALOKA
 from .database import verificar_atualizacao_permitida, registrar_tentativa_atualizacao
+
+# Tenta importar o sistema de logging do Airflow
+try:
+    from utils.airflow_logging import configurar_logger, log_task_info
+    AIRFLOW_LOGGER_DISPONIVEL = True
+except ImportError:
+    AIRFLOW_LOGGER_DISPONIVEL = False
+
+# Configura o logger
+logger = logging.getLogger(__name__)
+
+# Funções auxiliares para logging
+def log_info(mensagem, context=None):
+    """Registra uma mensagem de log informativa"""
+    if AIRFLOW_LOGGER_DISPONIVEL and context:
+        log_task_info(context, mensagem, nivel="info")
+    else:
+        logger.info(mensagem)
+        print(mensagem)
+
+def log_warning(mensagem, context=None):
+    """Registra uma mensagem de log de aviso"""
+    if AIRFLOW_LOGGER_DISPONIVEL and context:
+        log_task_info(context, mensagem, nivel="warning")
+    else:
+        logger.warning(mensagem)
+        print(f"AVISO: {mensagem}")
+
+def log_error(mensagem, context=None):
+    """Registra uma mensagem de log de erro"""
+    if AIRFLOW_LOGGER_DISPONIVEL and context:
+        log_task_info(context, mensagem, nivel="error")
+    else:
+        logger.error(mensagem)
+        print(f"ERRO: {mensagem}")
 
 
 class BancoDadosAtualizadoTrigger(BaseTrigger):
@@ -76,7 +112,11 @@ class BancoDadosAtualizadoTrigger(BaseTrigger):
         """
         tentativas = 0
         
+        log_info(f"Iniciando trigger de verificação para o cliente {self.cliente_id}")
+        
         while tentativas < self.max_tentativas:
+            log_info(f"Verificação {tentativas+1}/{self.max_tentativas} para cliente {self.cliente_id}")
+            
             # Verifica se existe um registro com data_execucao_modelagem como None
             # Usa diretamente DB_CONFIG_MALOKA
             pode_atualizar = verificar_atualizacao_permitida(
@@ -86,9 +126,11 @@ class BancoDadosAtualizadoTrigger(BaseTrigger):
             
             if pode_atualizar:
                 # Retorna sucesso para que a DAG continue
+                mensagem = f"Cliente {self.cliente_id} possui dados importados não processados, prosseguindo com modelagens"
+                log_info(mensagem)
                 return TriggerEvent({
                     "status": "success",
-                    "message": f"Cliente {self.cliente_id} possui dados importados não processados, prosseguindo com modelagens"
+                    "message": mensagem
                 })
             
             # Incrementa o contador de tentativas
@@ -96,18 +138,23 @@ class BancoDadosAtualizadoTrigger(BaseTrigger):
             
             # Se atingiu o número máximo de tentativas, finaliza com falha
             if tentativas >= self.max_tentativas:
+                mensagem = f"Excedido o número máximo de tentativas ({self.max_tentativas}) para o cliente {self.cliente_id}"
+                log_warning(mensagem)
                 return TriggerEvent({
                     "status": "error",
-                    "message": f"Excedido o número máximo de tentativas ({self.max_tentativas}) para o cliente {self.cliente_id}"
+                    "message": mensagem
                 })
-                
+            
+            log_info(f"Cliente {self.cliente_id} não possui novos dados, aguardando {self.intervalo_verificacao} minutos antes da próxima verificação")
             # Aguarda o intervalo antes da próxima verificação
             await asyncio.sleep(self.intervalo_verificacao * 60)
             
         # Se por algum motivo sair do loop sem retornar, retorna erro
+        mensagem = "Falha na verificação de atualização do banco de dados"
+        log_error(mensagem)
         return TriggerEvent({
             "status": "error",
-            "message": "Falha na verificação de atualização do banco de dados"
+            "message": mensagem
         })
 
 
@@ -145,20 +192,25 @@ def criar_deferrable_task_atualizacao_banco(
         Função que verifica se existe um registro com data_execucao_modelagem como None
         e define qual branch seguir
         """
+        log_info(f"Verificando se o cliente {cliente_id} possui dados para atualização", context)
+        
         # Usa diretamente DB_CONFIG_MALOKA
         pode_atualizar = verificar_atualizacao_permitida(
             cliente_id=cliente_id,
-            timeout_minutos=timeout_minutos
+            timeout_minutos=timeout_minutos,
+            context=context
         )
         
         if pode_atualizar:
             # Retorna o ID da próxima task na branch de sucesso
-            print(f"Cliente {cliente_id} possui dados importados não processados, prosseguindo com modelagens")
-            return context['params'].get('success_task_id')
+            next_task = context['params'].get('success_task_id')
+            log_info(f"Cliente {cliente_id} possui dados importados não processados, prosseguindo com modelagens. Próxima task: {next_task}", context)
+            return next_task
         else:
             # Retorna o ID da task na branch de aguardar
-            print(f"Cliente {cliente_id} não possui novos dados para processamento, aguardando próxima verificação")
-            return context['params'].get('wait_task_id')
+            wait_task = context['params'].get('wait_task_id')
+            log_info(f"Cliente {cliente_id} não possui novos dados para processamento, aguardando próxima verificação. Próxima task: {wait_task}", context)
+            return wait_task
     
     return verificar_atualizacao_branch
 
@@ -173,9 +225,13 @@ def registrar_sucesso_atualizacao(conn_id=None, cliente_id: str = None, **kwargs
     """
     from .database import registrar_execucao_modelagem
     
+    context = kwargs.get('context', {})
+    log_info(f"Registrando conclusão bem-sucedida da modelagem para o cliente {cliente_id}", context)
+    
     registrar_execucao_modelagem(
         cliente_id=cliente_id,
-        mensagem="Processamento concluído com sucesso"
+        mensagem="Processamento concluído com sucesso",
+        context=context
     )
 
 
@@ -193,5 +249,5 @@ def registrar_falha_atualizacao(conn_id=None, cliente_id: str = None, **kwargs):
     
     # Não registramos falha no banco para manter a coluna data_execucao_modelagem como None
     # e permitir uma nova tentativa na próxima execução da DAG
-    print(f"Falha no processamento para o cliente {cliente_id}: {mensagem}")
-    print("Data de execução das modelagens não foi atualizada, permitindo nova tentativa")
+    log_error(f"Falha no processamento para o cliente {cliente_id}: {mensagem}", context)
+    log_info("Data de execução das modelagens não foi atualizada, permitindo nova tentativa", context)
