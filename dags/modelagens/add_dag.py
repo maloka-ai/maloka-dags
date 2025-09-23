@@ -1,5 +1,15 @@
 """
-DAG para executar o script main.py do sistema de modelagens Maloka para o cliente ADD
+DAG para # Adicionar o caminho do projeto ao PYTHONPATH para que os imports funcionem corretamente
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+# Importar nosso módulo de logging personalizado
+from utils.airflow_logging import configurar_logger, log_task_info
+
+# Configuração do logger para ser usado nas tarefas do Airflow
+logger = configurar_logger(__name__)
+
+# Caminho do projeto para uso nas tarefas
+project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file____))))tar o script main.py do sistema de modelagens Maloka para o cliente ADD
 Esta DAG executa todas as modelagens disponíveis no sistema para o cliente ADD.
 Esta DAG inclui um mecanismo de validação para verificar se o banco de dados está pronto para atualização.
 """
@@ -9,9 +19,16 @@ from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
 import os
 import sys
+import logging
 
 # Adicionar o caminho do projeto ao PYTHONPATH para que os imports funcionem corretamente
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+# Importar nosso módulo de logging personalizado
+from utils.airflow_logging import configurar_logger, log_task_info
+
+# Configuração do logger para ser usado nas tarefas do Airflow
+logger = configurar_logger(__name__)
 
 # Caminho do projeto para uso nas tarefas
 project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -27,25 +44,37 @@ from utils.triggers import (
     registrar_sucesso_atualizacao,
     registrar_falha_atualizacao
 )
+from utils.airflow_callbacks import falha_task_callback, sucesso_task_callback
 
 def executar_modelagem_add(**kwargs):
     """
     Função para executar modelagens específicas para o cliente ADD
     """
     cliente_id = 'add'
+    log_task_info(kwargs, f"Iniciando execução das modelagens para cliente {cliente_id}")
+    
     if cliente_id not in CLIENTES:
+        logger.error(f"Cliente {cliente_id} não encontrado na configuração")
         raise ValueError(f"Cliente {cliente_id} não encontrado na configuração")
         
     # Usamos DB_CONFIG_MALOKA para ter acesso direto às configurações de conexão do banco
     # Isso pode ser útil para logs ou para passar para funções que precisam de conexão direta
-    print(f"Configurações de banco para cliente {cliente_id}:")
-    print(f"Host: {DB_CONFIG_MALOKA['host']}")
-    print(f"Port: {DB_CONFIG_MALOKA['port']}")
-    print(f"User: {DB_CONFIG_MALOKA['user']}")
+    log_task_info(kwargs, f"Configurações de banco para cliente {cliente_id}:")
+    log_task_info(kwargs, f"Host: {DB_CONFIG_MALOKA['host']}")
+    log_task_info(kwargs, f"Port: {DB_CONFIG_MALOKA['port']}")
+    log_task_info(kwargs, f"User: {DB_CONFIG_MALOKA['user']}")
     
-    # Executa as modelagens apenas para o cliente ADD
-    manager = main.ModelagemManager()
-    manager.atualizar_tudo(cliente_especifico=cliente_id)
+    try:
+        # Executa as modelagens apenas para o cliente ADD
+        log_task_info(kwargs, f"Executando modelagens para cliente {cliente_id}")
+        # Passa o contexto do Airflow para o ModelagemManager para que os logs sejam visíveis no Airflow
+        manager = main.ModelagemManager(airflow_context=kwargs)
+        manager.atualizar_tudo(cliente_especifico=cliente_id)
+        log_task_info(kwargs, f"Modelagens para cliente {cliente_id} executadas com sucesso")
+    except Exception as e:
+        logger.error(f"Erro ao executar modelagens para cliente {cliente_id}: {str(e)}")
+        # Re-lança a exceção para o Airflow detectar a falha
+        raise
 
 default_args = {
     'owner': 'airflow',
@@ -62,7 +91,7 @@ CLIENTE_ID = 'add'
 INTERVALO_VERIFICACAO_MIN = 15  # Verificar a cada 15 minutos
 
 # Agora estamos usando diretamente a configuração do banco através de DB_CONFIG_MALOKA
-print(f"Usando configuração de banco: Host={DB_CONFIG_MALOKA['host']}, Port={DB_CONFIG_MALOKA['port']}")
+logger.info(f"Usando configuração de banco: Host={DB_CONFIG_MALOKA['host']}, Port={DB_CONFIG_MALOKA['port']}")
 
 # Definição da DAG usando with
 with DAG(
@@ -97,26 +126,42 @@ with DAG(
     executar_modelagens = PythonOperator(
         task_id='executar_modelagens_add',
         python_callable=executar_modelagem_add,
-        provide_context=True
+        provide_context=True,
+        on_failure_callback=falha_task_callback,
+        on_success_callback=sucesso_task_callback
     )
     
+    # Função para logging detalhado no sucesso
+    def registrar_sucesso_com_logs(**kwargs):
+        log_task_info(kwargs, f"Registrando sucesso para cliente {CLIENTE_ID}")
+        resultado = registrar_sucesso_atualizacao(cliente_id=CLIENTE_ID)
+        log_task_info(kwargs, f"Resultado do registro de sucesso: {resultado}")
+        return resultado
+
     # Task para registrar o sucesso da atualização
     registrar_sucesso = PythonOperator(
         task_id='registrar_sucesso',
-        python_callable=registrar_sucesso_atualizacao,
-        op_kwargs={
-            'cliente_id': CLIENTE_ID
-        },
+        python_callable=registrar_sucesso_com_logs,
+        provide_context=True,
         trigger_rule='all_success'
     )
     
+    # Função para logging detalhado na falha
+    def registrar_falha_com_logs(**kwargs):
+        log_task_info(kwargs, f"Registrando falha para cliente {CLIENTE_ID}")
+        try:
+            resultado = registrar_falha_atualizacao(cliente_id=CLIENTE_ID)
+            log_task_info(kwargs, f"Resultado do registro de falha: {resultado}")
+            return resultado
+        except Exception as e:
+            logger.error(f"Erro ao registrar falha: {str(e)}")
+            # Não relançamos a exceção para evitar recursão
+
     # Task para registrar falha na atualização
     registrar_falha = PythonOperator(
         task_id='registrar_falha',
-        python_callable=registrar_falha_atualizacao,
-        op_kwargs={
-            'cliente_id': CLIENTE_ID
-        },
+        python_callable=registrar_falha_com_logs,
+        provide_context=True,
         trigger_rule='one_failed',
         on_failure_callback=None  # Não propagar falha para evitar recursão
     )
