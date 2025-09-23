@@ -84,7 +84,7 @@ with DAG(
             'success_task_id': 'executar_modelagens_add',
             'wait_task_id': 'aguardar_banco_atualizado'
         }
-    )
+    )()
     
     # Task de espera quando o banco não está pronto para atualização
     aguardar_banco = EmptyOperator(
