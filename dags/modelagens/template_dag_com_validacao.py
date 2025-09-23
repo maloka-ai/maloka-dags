@@ -70,11 +70,12 @@ with DAG(
         conn_id=DB_CONN_ID,
         cliente_id=CLIENTE_ID,
         intervalo_verificacao_minutos=INTERVALO_VERIFICACAO_MIN,
+        dag=dag,
         params={
             'success_task_id': 'executar_tarefa_principal',
             'wait_task_id': 'aguardar_banco_atualizado'
         }
-    )
+    )()
     
     # Task de espera quando o banco não está pronto para atualização
     aguardar_banco = EmptyOperator(
@@ -113,7 +114,8 @@ with DAG(
     )
     
     # Definir a sequência das tarefas
-    verificar_atualizacao >> [tarefa_principal, aguardar_banco]
+    verificar_atualizacao >> tarefa_principal
+    verificar_atualizacao >> aguardar_banco
     tarefa_principal >> registrar_sucesso
     tarefa_principal >> registrar_falha
     
