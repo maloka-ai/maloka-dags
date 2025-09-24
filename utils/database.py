@@ -3,7 +3,6 @@ Módulo para gerenciar conexões e operações com banco de dados
 """
 import pandas as pd
 import psycopg2
-from sqlalchemy import create_engine
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import sys
@@ -183,21 +182,32 @@ class DatabaseClient:
         Returns:
             pd.DataFrame: DataFrame com o resultado da query
         """
-        engine = create_engine(self.get_connection_uri())
+        config = self.config
+        database = self.id_cliente if self.id_cliente else 'postgres'
         query_desc = query.strip().split('\n')[0][:50] + "..." if len(query) > 50 else query
         log_info(f"Executando query: {query_desc}", self.context)
         
         try:
-            # Usando with para garantir que a conexão seja fechada corretamente
-            with engine.connect() as connection:
-                df = pd.read_sql(query, connection, params=params)
-                log_info(f"Query executada com sucesso. Registros retornados: {len(df)}", self.context)
-                return df
+            # Conecta diretamente com psycopg2
+            conn = psycopg2.connect(
+                host=config['host'],
+                port=config['port'],
+                database=database,
+                user=config['user'],
+                password=config['password']
+            )
+            
+            # Executa a query usando pandas read_sql_query
+            df = pd.read_sql_query(query, conn, params=params)
+            log_info(f"Query executada com sucesso. Registros retornados: {len(df)}", self.context)
+            
+            # Fecha a conexão
+            conn.close()
+            return df
+            
         except Exception as e:
             log_error(f"Erro ao executar query: {str(e)}", self.context)
-            raise
-        finally:
-            engine.dispose()      
+            raise      
         
 def verificar_atualizacao_permitida(cliente_id: str, timeout_minutos: int = 15, context=None) -> bool:
     """
