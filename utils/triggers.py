@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional
 # Adicionar caminho para importações
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Utiliza a função get_db_config do módulo database para garantir consistência
-from utils.database import get_db_config, registrar_execucao_modelagem, verificar_atualizacao_permitida
+from utils.database import get_db_config, atualizar_todos_registros_pendentes, verificar_atualizacao_permitida
 
 # Carrega configuração
 DB_CONFIG_MALOKA = get_db_config()
@@ -228,9 +228,8 @@ def registrar_sucesso_atualizacao(conn_id=None, cliente_id: str = None, **kwargs
     context = kwargs.get('context', {})
     log_info(f"Registrando conclusão bem-sucedida da modelagem para o cliente {cliente_id}", context)
     
-    registrar_execucao_modelagem(
+    atualizar_todos_registros_pendentes(
         cliente_id=cliente_id,
-        mensagem="Processamento concluído com sucesso",
         context=context
     )
 
