@@ -184,9 +184,11 @@ class DatabaseClient:
         log_info(f"Executando query: {query_desc}", self.context)
         
         try:
-            df = pd.read_sql(query, engine, params=params)
-            log_info(f"Query executada com sucesso. Registros retornados: {len(df)}", self.context)
-            return df
+            # Usando with para garantir que a conexão seja fechada corretamente
+            with engine.connect() as connection:
+                df = pd.read_sql(query, connection, params=params)
+                log_info(f"Query executada com sucesso. Registros retornados: {len(df)}", self.context)
+                return df
         except Exception as e:
             log_error(f"Erro ao executar query: {str(e)}", self.context)
             raise
