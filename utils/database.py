@@ -185,7 +185,7 @@ class DatabaseClient:
         config = self.config
         database = cliente_id
         query_desc = query.strip().split('\n')[0][:50] + "..." if len(query) > 50 else query
-        log_info(f"Executando query: {query_desc}", self.context)
+        log_info(f"Executando query: para {database}", self.context)
         
         try:
             # Conecta diretamente com psycopg2
