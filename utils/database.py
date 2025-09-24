@@ -170,8 +170,8 @@ class DatabaseClient:
         # Usa o id_cliente como nome do banco se disponível, senão usa 'postgres' como padrão
         database = self.id_cliente if self.id_cliente else 'postgres'
         return f"postgresql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{database}"
-        
-    def execute_query(self, query: str, params: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+
+    def execute_query(self, query: str, cliente_id: str, params: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
         """
         Executa uma query SQL e retorna o resultado como DataFrame
         
@@ -183,7 +183,7 @@ class DatabaseClient:
             pd.DataFrame: DataFrame com o resultado da query
         """
         config = self.config
-        database = self.id_cliente if self.id_cliente else 'postgres'
+        database = cliente_id
         query_desc = query.strip().split('\n')[0][:50] + "..." if len(query) > 50 else query
         log_info(f"Executando query: {query_desc}", self.context)
         
@@ -238,7 +238,7 @@ def verificar_atualizacao_permitida(cliente_id: str, timeout_minutos: int = 15, 
     """
     
     try:
-        df = db_client.execute_query(query)
+        df = db_client.execute_query(query, cliente_id)
         total_pendentes = df['total_pendentes'].iloc[0] if not df.empty else 0
         
         if total_pendentes > 0:
