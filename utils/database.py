@@ -12,7 +12,86 @@ import logging
 
 # Adicionar caminho para importações
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.airflow_variables import DB_CONFIG_MALOKA
+
+# Variável global para armazenar configuração
+_DB_CONFIG_CACHE = None
+
+def get_db_config():
+    """
+    Obtém as configurações de banco de dados com diferentes estratégias
+    dependendo do ambiente de execução
+    
+    Returns:
+        dict: Configuração de conexão ao banco de dados
+    """
+    global _DB_CONFIG_CACHE
+    
+    # Se já temos a configuração em cache, retorna
+    if _DB_CONFIG_CACHE:
+        return _DB_CONFIG_CACHE
+    
+    # Estratégia 1: Tenta importar diretamente do módulo de variáveis
+    try:
+        from config.airflow_variables import get_db_config_maloka
+        config = get_db_config_maloka()
+        if all(config.values()):  # Verifica se todos os valores estão preenchidos
+            _DB_CONFIG_CACHE = config
+            print("✅ DB Config obtido diretamente de airflow_variables.py")
+            return config
+    except Exception as e:
+        print(f"⚠️ Erro ao carregar config direto: {str(e)}")
+    
+    # Estratégia 2: Tenta obter do Airflow via DAG executada
+    try:
+        from airflow.models import DagRun, TaskInstance
+        from airflow.utils.db import create_session
+        
+        with create_session() as session:
+            # Busca a última execução bem-sucedida da DAG de variáveis
+            last_run = session.query(DagRun).filter(
+                DagRun.dag_id == 'dag_load_variables',
+                DagRun.state == 'success'
+            ).order_by(DagRun.execution_date.desc()).first()
+            
+            if last_run:
+                # Busca a task específica que carrega as variáveis
+                ti = session.query(TaskInstance).filter(
+                    TaskInstance.dag_id == 'dag_load_variables',
+                    TaskInstance.task_id == 'load_variables',
+                    TaskInstance.run_id == last_run.run_id,
+                    TaskInstance.state == 'success'
+                ).first()
+                
+                if ti and ti.xcom_pull(task_ids='load_variables'):
+                    config = ti.xcom_pull(task_ids='load_variables')
+                    if all(config.values()):
+                        _DB_CONFIG_CACHE = config
+                        print("✅ DB Config obtido da DAG dag_load_variables via XCom")
+                        return config
+    except Exception as e:
+        print(f"⚠️ Erro ao carregar config da DAG: {str(e)}")
+    
+    # Estratégia 3: Fallback para variáveis de ambiente
+    try:
+        config = {
+            'host': os.environ.get('DB_HOST'),
+            'port': os.environ.get('DB_PORT'),
+            'user': os.environ.get('DB_USER'),
+            'password': os.environ.get('DB_PASS')
+        }
+        if all(config.values()):
+            _DB_CONFIG_CACHE = config
+            print("✅ DB Config obtido de variáveis de ambiente")
+            return config
+    except Exception as e:
+        print(f"⚠️ Erro ao carregar config do ambiente: {str(e)}")
+    
+    # Se chegou aqui, usa config vazio (falhas serão tratadas mais adiante)
+    print("❌ Não foi possível obter configuração de banco válida")
+    return {'host': None, 'port': None, 'user': None, 'password': None}
+
+# Carrega a configuração
+DB_CONFIG_MALOKA = get_db_config()
 
 # Tenta importar o sistema de logging do Airflow
 try:
@@ -49,6 +128,9 @@ def log_error(mensagem, context=None):
         logger.error(mensagem)
         print(f"ERRO: {mensagem}")
 
+
+# Exporta a função para uso em outros módulos
+__all__ = ['DatabaseClient', 'get_db_config', 'atualizar_status_processamento', 'registrar_execucao_modelagem', 'verificar_atualizacao_permitida', 'verificar_e_processar_registros_pendentes', 'atualizar_todos_registros_pendentes']
 
 class DatabaseClient:
     """Cliente para conexão com banco de dados"""
