@@ -381,6 +381,8 @@ def gerar_relatorios_cross_selling(nome_cliente):
 
     # Pegar somente vendas no ano especificado
     df_vendas['data_venda'] = pd.to_datetime(df_vendas['data_venda'])
+    #filtrar df_vendas para somente vendas que possuem a tipo_venda como PEDIDO e situacao_venda como CONCLUIDA
+    df_vendas = df_vendas[(df_vendas['tipo_venda'] == 'PEDIDO') & (df_vendas['situacao_venda'] == 'CONCLUIDA')]
     data_limite = pd.Timestamp.now() - pd.DateOffset(years= tempo_analise_anos)
     # tempo da analise
     print(f"Analise de vendas do último(s) {tempo_analise_anos} ano(s)")
