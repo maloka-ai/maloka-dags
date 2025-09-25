@@ -42,7 +42,7 @@ def processar_lote(args):
     except Exception as e:
         return 0, str(e)  # Retorna 0 registros inseridos e a mensagem de erro
 
-def inserir_dados_paralelo(df, tabela, database, conn, cursor):
+def inserir_dados_paralelo(df, tabela, database, conn, cursor, schema="maloka_analytics"):
     """
     Função para inserir dados em uma tabela usando processamento paralelo para maior eficiência.
     
@@ -52,6 +52,7 @@ def inserir_dados_paralelo(df, tabela, database, conn, cursor):
         database: Nome do banco de dados
         conn: Conexão com o banco de dados
         cursor: Cursor para execução de comandos SQL
+        schema: Nome do esquema onde a tabela está (padrão: "maloka_analytics")
         
     Returns:
         bool: True se a inserção foi bem-sucedida, False caso contrário
@@ -67,12 +68,26 @@ def inserir_dados_paralelo(df, tabela, database, conn, cursor):
         # Converter NaN para None
         df_upload = df.replace({np.nan: None})
             
-        # Preparar a query
+        # Preparar a query com ON CONFLICT para lidar com chaves duplicadas
         placeholders = ", ".join(["%s"] * len(df_upload.columns))
-        insert_query = f"""
-        INSERT INTO maloka_analytics.{tabela} ({", ".join(colunas)})
-        VALUES ({placeholders})
-        """
+        
+        # Se tabela for segmentacao, usar ON CONFLICT para atualizar registros existentes
+        if tabela == "segmentacao":
+            # Obter todas as colunas exceto id_cliente
+            update_cols = [col for col in df_upload.columns if col != "id_cliente"]
+            update_stmts = [f'"{col}" = EXCLUDED."{col}"' for col in update_cols]
+            
+            insert_query = f"""
+            INSERT INTO {schema}.{tabela} ({", ".join(colunas)})
+            VALUES ({placeholders})
+            ON CONFLICT (id_cliente) DO UPDATE SET
+            {", ".join(update_stmts)}
+            """
+        else:
+            insert_query = f"""
+            INSERT INTO {schema}.{tabela} ({", ".join(colunas)})
+            VALUES ({placeholders})
+            """
             
         # Criar lista de tuplas com os valores
         valores = [tuple(row) for _, row in df_upload.iterrows()]
@@ -99,7 +114,7 @@ def inserir_dados_paralelo(df, tabela, database, conn, cursor):
                 'port': DB_CONFIG_MALOKA['port']
             }
                 
-            # Adicionar lote à lista de tarefas
+            # Adicionar lote à lista de tarefas (incluindo o schema nas instruções SQL)
             lotes.append((batch, db_config, insert_query, i))
             
         # Iniciar processamento paralelo
@@ -134,7 +149,7 @@ def inserir_dados_paralelo(df, tabela, database, conn, cursor):
             try:
                 cursor.execute("SET maintenance_work_mem = '64MB'")  # Valor padrão
                 cursor.execute("SET synchronous_commit = on")  # Valor padrão
-                cursor.execute(f"ALTER TABLE maloka_analytics.{tabela} SET LOGGED")
+                cursor.execute(f"ALTER TABLE {schema}.{tabela} SET LOGGED")
             except Exception as e:
                 print(f"Aviso ao restaurar configurações: {e}")
                 
@@ -150,11 +165,11 @@ def inserir_dados_paralelo(df, tabela, database, conn, cursor):
                 cursor.execute("SET synchronous_commit = on")  # Valor padrão
                     
                 # Converter de volta para LOGGED para garantir durabilidade
-                cursor.execute(f"ALTER TABLE maloka_analytics.{tabela} SET LOGGED")
+                cursor.execute(f"ALTER TABLE {schema}.{tabela} SET LOGGED")
                     
                 # Analisar tabela para otimizar planejamento de consultas
                 print(f"Analisando tabela {tabela} para otimizar consultas...")
-                cursor.execute(f"ANALYZE maloka_analytics.{tabela}")
+                cursor.execute(f"ANALYZE {schema}.{tabela}")
                     
             except Exception as e:
                     print(f"Aviso ao restaurar configurações: {e}")
@@ -170,10 +185,24 @@ def inserir_dados_paralelo(df, tabela, database, conn, cursor):
             df_upload = df.replace({np.nan: None})
             colunas = [f'"{col}"' for col in df_upload.columns]
             placeholders = ", ".join(["%s"] * len(df_upload.columns))
-            insert_query = f"""
-            INSERT INTO maloka_analytics.{tabela} ({", ".join(colunas)})
-            VALUES ({placeholders})
-            """
+            
+            # Se tabela for segmentacao, usar ON CONFLICT para atualizar registros existentes
+            if tabela == "segmentacao":
+                # Obter todas as colunas exceto id_cliente
+                update_cols = [col for col in df_upload.columns if col != "id_cliente"]
+                update_stmts = [f'"{col}" = EXCLUDED."{col}"' for col in update_cols]
+                
+                insert_query = f"""
+                INSERT INTO {schema}.{tabela} ({", ".join(colunas)})
+                VALUES ({placeholders})
+                ON CONFLICT (id_cliente) DO UPDATE SET
+                {", ".join(update_stmts)}
+                """
+            else:
+                insert_query = f"""
+                INSERT INTO {schema}.{tabela} ({", ".join(colunas)})
+                VALUES ({placeholders})
+                """
             
             valores = [tuple(row) for _, row in df_upload.iterrows()]
             cursor.executemany(insert_query, valores)
@@ -183,8 +212,8 @@ def inserir_dados_paralelo(df, tabela, database, conn, cursor):
             try:
                 cursor.execute("SET maintenance_work_mem = '64MB'")  # Valor padrão
                 cursor.execute("SET synchronous_commit = on")  # Valor padrão
-                cursor.execute(f"ALTER TABLE maloka_analytics.{tabela} SET LOGGED")
-                cursor.execute(f"ANALYZE maloka_analytics.{tabela}")
+                cursor.execute(f"ALTER TABLE {schema}.{tabela} SET LOGGED")
+                cursor.execute(f"ANALYZE {schema}.{tabela}")
             except Exception as e:
                 print(f"Aviso ao restaurar configurações: {e}")
             
@@ -860,6 +889,30 @@ def gerar_analise_cliente(nome_cliente, data_referencia=None):
     else:
         print(f"Falha ao inserir dados no banco de dados {database}.")
 
+    rfma_segmentado_assistente = rfma_segmentado.copy()
+    
+    #selecionar colunas que vão para o assistente
+    colunas_assistente = [
+        'id_cliente',
+        'recencia', 
+        'frequencia', 
+        'valor_monetario', 
+        'antiguidade',
+        'r_decil', 
+        'f_decil', 
+        'vm_decil', 
+        'a_decil',
+        'segmento'
+    ]
+    rfma_segmentado_assistente = rfma_segmentado_assistente[colunas_assistente]
+
+    #inserir para assistente
+    resultado_insercao_assistente = inserir_segmentacao_para_assistente(database, rfma_segmentado_assistente)
+    if resultado_insercao_assistente:
+        print(f"Dados para assistente inseridos com sucesso no banco de dados {database}!")
+    else:
+        print(f"Falha ao inserir dados para assistente no banco de dados {database}.")
+
     # print(f"Análise de clientes gerada para {nome_cliente}")
 
     # Dataframe de métricas gerais para o cliente
@@ -1036,9 +1089,9 @@ def inserir_segmentacao_no_banco(database, rfma_segmentado):
         print(f"Preparando para inserir {len(rfma_segmentado)} registros na tabela segmentacao...")
         
         # Usar a função para inserir os dados em paralelo
-        inserir_dados_paralelo(rfma_segmentado, "segmentacao", database, conn, cursor)
+        inserir_dados_paralelo(rfma_segmentado, "segmentacao", database, conn, cursor, "maloka_analytics")
 
-        print(f"Dados inseridos com sucesso! Total de {len(rfma_segmentado)} registros.")        # Fechar cursor e conexão
+        print(f"Dados inseridos com sucesso em maloka_analytics! Total de {len(rfma_segmentado)} registros.")        # Fechar cursor e conexão
         cursor.close()
         conn.close()
         return True
@@ -1048,7 +1101,203 @@ def inserir_segmentacao_no_banco(database, rfma_segmentado):
         if 'conn' in locals() and conn is not None:
             conn.close()
         return False
+    
+def inserir_segmentacao_para_assistente(database, rfma_segmentado_assistente):
+    """
+    Insere os dados de segmentação no banco de dados PostgreSQL.
+    
+    Parâmetros:
+    - database: Nome do banco de dados
+    - rfma_segmentado: DataFrame pandas com os dados de segmentação a serem inseridos
+    
+    Retorno:
+    - bool: True se a inserção foi bem-sucedida, False caso contrário
+    """
 
+    try:
+        # Conectar ao PostgreSQL
+        print("Conectando ao banco de dados PostgreSQL para inserir segmentação...")
+        conn = psycopg2.connect(
+            host=DB_CONFIG_MALOKA['host'],
+            database=database,
+            user=DB_CONFIG_MALOKA['user'],
+            password=DB_CONFIG_MALOKA['password'],
+            port=DB_CONFIG_MALOKA['port']
+        )
+        
+        # Criar cursor
+        cursor = conn.cursor()
+        
+        # Verificar se o esquema maloka_core existe, caso contrário, criar
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = 'maloka_core')")
+        schema_existe = cursor.fetchone()[0]
+        
+        if not schema_existe:
+            print(f"Esquema maloka_core não existe no banco {database}. Criando...")
+            cursor.execute("CREATE SCHEMA maloka_core")
+        else: 
+            print(f"Esquema maloka_core já existe no banco {database}.")
+
+        # Verificar se a tabela já existe no esquema maloka_core
+        cursor.execute("SELECT EXISTS(SELECT * FROM information_schema.tables WHERE table_name='segmentacao' AND table_schema='maloka_core')")
+        tabela_existe = cursor.fetchone()[0]
+        
+        if tabela_existe:
+            # Verificar se as novas colunas existem na tabela
+            cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='segmentacao' AND table_schema='maloka_core'")
+            colunas_existentes = [row[0] for row in cursor.fetchall()]
+                
+            # Adicionar colunas que não existem ainda
+            for coluna in rfma_segmentado_assistente.columns:
+                if coluna.lower() not in [col.lower() for col in colunas_existentes]:
+                    print(f"Adicionando nova coluna: {coluna}")
+                        
+                    # Determinar o tipo de dados da coluna
+                    dtype = rfma_segmentado_assistente[coluna].dtype
+                    if 'int' in str(dtype):
+                        tipo = 'INTEGER'
+                    elif 'float' in str(dtype):
+                        tipo = 'NUMERIC'
+                    elif 'datetime' in str(dtype):
+                        tipo = 'TIMESTAMP'
+                    else:
+                        tipo = 'TEXT'
+                            
+                    # Executar o ALTER TABLE para adicionar a coluna
+                    try:
+                        cursor.execute(f'ALTER TABLE maloka_core.segmentacao ADD COLUMN "{coluna}" {tipo}')
+                        conn.commit()
+                        print(f"Coluna {coluna} adicionada com sucesso!")
+                    except Exception as e:
+                        print(f"Erro ao adicionar coluna {coluna}: {e}")
+                        conn.rollback()
+
+            # Truncar a tabela se ela já existir
+            print("Tabela segmentacao já existe no esquema maloka_core. Limpando dados existentes...")
+            cursor.execute("TRUNCATE TABLE maloka_core.segmentacao")
+        else:
+            # Criar a tabela se não existir
+            print("Criando tabela segmentacao no esquema maloka_core...")
+            # Definir os tipos de dados para cada coluna com base nos tipos do DataFrame
+            colunas = []
+            primary_key_added = False
+            for coluna, dtype in rfma_segmentado_assistente.dtypes.items():
+                if coluna == 'id_cliente':
+                    tipo = 'INTEGER PRIMARY KEY'
+                    primary_key_added = True
+                elif 'int' in str(dtype):
+                    tipo = 'INTEGER'
+                elif 'float' in str(dtype):
+                    tipo = 'NUMERIC'
+                elif 'datetime' in str(dtype):
+                    tipo = 'TIMESTAMP'
+                else:
+                    tipo = 'TEXT'
+                colunas.append(f'"{coluna}" {tipo}')
+            
+            # Se por algum motivo id_cliente não estava nas colunas, adicione a definição de chave primária
+            if not primary_key_added:
+                colunas.append('"id_cliente" INTEGER PRIMARY KEY')
+            
+            try:
+                create_table_query = f"""
+                CREATE UNLOGGED TABLE maloka_core.segmentacao (
+                    {", ".join(colunas)}
+                )
+                """
+                print("Executando query de criação da tabela:")
+                print(create_table_query)
+                cursor.execute(create_table_query)
+                conn.commit()  # Confirmar a criação da tabela
+                print("Tabela UNLOGGED criada para inserção rápida")
+            except Exception as e:
+                print(f"Erro ao criar tabela maloka_core.segmentacao: {e}")
+                print("Tentando criar novamente com definição de chave primária explícita...")
+                
+                # Tentar criar a tabela novamente com uma definição de chave primária explícita
+                try:
+                    create_table_query = """
+                    CREATE UNLOGGED TABLE maloka_core.segmentacao (
+                        "id_cliente" INTEGER PRIMARY KEY,
+                        "recencia" INTEGER,
+                        "frequencia" INTEGER,
+                        "valor_monetario" NUMERIC,
+                        "antiguidade" INTEGER,
+                        "r_decil" INTEGER,
+                        "f_decil" INTEGER,
+                        "vm_decil" INTEGER,
+                        "a_decil" INTEGER,
+                        "segmento" TEXT
+                    )
+                    """
+                    cursor.execute(create_table_query)
+                    conn.commit()  # Confirmar a criação da tabela
+                    print("Tabela criada com definição manual de colunas")
+                except Exception as e2:
+                    print(f"Falha na segunda tentativa de criar tabela: {e2}")
+            
+            # Definir fillfactor para reduzir fragmentação
+            cursor.execute("ALTER TABLE maloka_core.segmentacao SET (fillfactor = 90)")
+            
+            # Otimizar configurações temporárias
+            cursor.execute("SET maintenance_work_mem = '256MB'")
+            cursor.execute("SET synchronous_commit = off")
+        
+        # Otimização da inserção de dados
+        print(f"Preparando para inserir {len(rfma_segmentado_assistente)} registros na tabela segmentacao...")
+        
+        # Verificar se a tabela maloka_core.segmentacao existe antes de tentar inserir dados
+        cursor.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='segmentacao' AND table_schema='maloka_core')")
+        tabela_existe = cursor.fetchone()[0]
+        
+        if not tabela_existe:
+            print("ERRO: A tabela maloka_core.segmentacao não existe após a tentativa de criação!")
+            print("Tentando criar a tabela novamente...")
+            
+            # Último recurso - tentar criar a tabela novamente
+            try:
+                create_table_query = """
+                CREATE UNLOGGED TABLE maloka_core.segmentacao (
+                    "id_cliente" INTEGER PRIMARY KEY,
+                    "recencia" INTEGER,
+                    "frequencia" INTEGER,
+                    "valor_monetario" NUMERIC,
+                    "antiguidade" INTEGER,
+                    "r_decil" INTEGER,
+                    "f_decil" INTEGER,
+                    "vm_decil" INTEGER,
+                    "a_decil" INTEGER,
+                    "segmento" TEXT
+                )
+                """
+                cursor.execute(create_table_query)
+                conn.commit()
+                print("Tabela criada com sucesso no último recurso")
+            except Exception as e:
+                print(f"Falha na última tentativa de criar tabela: {e}")
+                print("Não foi possível criar a tabela maloka_core.segmentacao")
+                cursor.close()
+                conn.close()
+                return False
+        
+        # Usar a função para inserir os dados em paralelo
+        resultado = inserir_dados_paralelo(rfma_segmentado_assistente, "segmentacao", database, conn, cursor, "maloka_core")
+        
+        if resultado:
+            print(f"Dados inseridos com sucesso em maloka_core! Total de {len(rfma_segmentado_assistente)} registros.")
+        else:
+            print(f"Falha ao inserir dados em maloka_core. Verifique os logs para mais detalhes.")
+            
+        # Fechar cursor e conexão
+        cursor.close()
+        conn.close()
+        return True
+        
+    except Exception as e:
+        print(f"Erro ao inserir dados no banco: {e}")
+        if 'conn' in locals() and conn is not None:
+            conn.close()
+        return False
 # Modificação na função inserir_metricas_no_banco
 def inserir_metricas_no_banco(database, metricas_df):
     """
