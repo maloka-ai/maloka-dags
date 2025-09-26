@@ -187,7 +187,7 @@ class DatabaseClient:
         database = cliente_id
         log_info(f"Executando query: para {database}", self.context)
         # Mostrar dados de config do psycopg2
-        # log_info(f"Configuração do banco de dados: {config}", self.context)
+        log_info(f"Configuração do banco de dados: {config}", self.context)
 
         try:
             # Conecta diretamente com psycopg2

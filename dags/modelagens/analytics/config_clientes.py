@@ -36,10 +36,20 @@ CLIENTES = {
         ####################
         # CROSS_SELLING
         ####################
-        "usar_cross_selling_produtos": False,  # Usar análise de cross-selling
-        "min_support": 0.03,
+        "usar_cross_selling_produtos": False,  # Usar análise de cross-selling de produtos
+
+        # Se cross-selling for True, configurar os parâmetros abaixo
+        "podar_populares": True,     # Podar produtos populares
+        "quantidade_populares": 3,   # Quantidade de produtos populares a serem considerados
+        "min_support": 0.3,
         "min_confidence": 0.3,
+
+        # Se cross-selling for False, configurar os parâmetros abaixo
+        "limite_prod_clientes": 50,       # Limite de produtos a serem considerados
+        "min_support_analise_clientes": 0.3,
+        "min_confidence_analise_clientes": 0.3,
         "tempo_analise_anos": 3,
+
 
         ####################
         # VENDA_ATIPICA
@@ -79,11 +89,18 @@ CLIENTES = {
         ####################
         # CROSS_SELLING
         ####################
-        "usar_cross_selling_produtos": True,  # Usar análise de cross-selling
-        "podar_populares": True,  # Podar produtos populares
-        "quantidade_populares": 3,  # Quantidade de produtos populares a serem considerados
+        "usar_cross_selling_produtos": True,  # Usar análise de cross-selling de produtos
+
+        # Se cross-selling for True, configurar os parâmetros abaixo
+        "podar_populares": False,     # Podar produtos populares
+        "quantidade_populares": 0,   # Quantidade de produtos populares a serem considerados
         "min_support": 0.0001,
         "min_confidence": 0.05,
+
+        # Se cross-selling for False, configurar os parâmetros abaixo
+        "limite_prod_clientes": 50,       # Limite de produtos a serem considerados
+        "min_support_analise_clientes": 0.0001,
+        "min_confidence_analise_clientes": 0.05,
         "tempo_analise_anos": 1,
 
         ####################
@@ -127,11 +144,22 @@ CLIENTES = {
         ####################
         # CROSS_SELLING
         ####################
-        "usar_cross_selling_produtos": True,  # Usar análise de cross-selling
-        "podar_populares": True,  # Podar produtos populares
-        "quantidade_populares": 3,  # Quantidade de produtos populares a serem considerados
+        "usar_cross_selling_produtos": False,  # Usar análise de cross-selling de produtos
+
+        # Se cross-selling for True, configurar os parâmetros abaixo
+        "podar_populares": True,     # Podar produtos populares
+        "quantidade_populares": 3,   # Quantidade de produtos populares a serem considerados
         "min_support": 0.0001,
         "min_confidence": 0.05,
+
+        # Se cross-selling for False, configurar os parâmetros abaixo
+        "limite_prod_clientes": 50,       # Limite de produtos a serem considerados
+        "min_support_analise_clientes": 0.0001,
+        "min_confidence_analise_clientes": 0.05,
+        "podar_populares_clientes": False,
+        "quantidade_populares_clientes": 0,
+
+
         "tempo_analise_anos": 1,
 
         ####################
