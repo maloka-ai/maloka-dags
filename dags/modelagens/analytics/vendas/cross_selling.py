@@ -39,13 +39,22 @@ def process_chunk(chunk_data):
     chunk_min_support = min_support / ajuste if ajuste > 0 else min_support
     
     # Processar com fpgrowth
-    resultado = fpgrowth(chunk, min_support=chunk_min_support, use_colnames=use_colnames)
-    
-    # Ajustar os valores de suporte para a escala original
-    if not resultado.empty:
-        resultado['support'] = resultado['support'] * ajuste
+    try:
+        resultado = fpgrowth(chunk, min_support=chunk_min_support, use_colnames=use_colnames)
         
-    return resultado
+        # Verificar se resultado é None e substituí-lo por um DataFrame vazio
+        if resultado is None:
+            print("Aviso: fpgrowth retornou None para um chunk. Usando DataFrame vazio.")
+            resultado = pd.DataFrame()
+        
+        # Ajustar os valores de suporte para a escala original
+        if not resultado.empty:
+            resultado['support'] = resultado['support'] * ajuste
+            
+        return resultado
+    except Exception as e:
+        print(f"Erro ao processar chunk: {str(e)}")
+        return pd.DataFrame()
 
 def parallel_fpgrowth(df, min_support, use_colnames=True, n_chunks=None, memory_limit_gb=4):
     """
@@ -111,14 +120,22 @@ def parallel_fpgrowth(df, min_support, use_colnames=True, n_chunks=None, memory_
                       for chunk in chunks]
     
     # Combinar resultados
-    if not results or all(res.empty for res in results):
+    if not results:
         print("Nenhum resultado obtido dos chunks processados.")
+        return pd.DataFrame()
+        
+    # Verificar e remover resultados None
+    results = [res for res in results if res is not None]
+    
+    if not results:
+        print("Todos os resultados eram None.")
         return pd.DataFrame()
         
     # Filtrar resultados vazios
     results = [res for res in results if not res.empty]
     
     if not results:
+        print("Todos os resultados estavam vazios.")
         return pd.DataFrame()
         
     # Combinar todos os DataFrames de resultados e agrupar itemsets idênticos
@@ -171,10 +188,17 @@ def gerar_relatorios_cross_selling(nome_cliente):
     schema = config_cliente["schema"]
     tempo_analise_anos = config_cliente["tempo_analise_anos"]
     usar_cross_selling_produtos = config_cliente["usar_cross_selling_produtos"]
-    cliente_min_support = config_cliente["min_support"]
-    cliente_min_confidence = config_cliente["min_confidence"]
-    podar_populares = config_cliente["podar_populares"]
-    quantidade_populares = config_cliente["quantidade_populares"]
+    if usar_cross_selling_produtos is False:
+        cliente_min_support = config_cliente["min_support_analise_clientes"]
+        cliente_min_confidence = config_cliente["min_confidence_analise_clientes"]
+        podar_populares = config_cliente["podar_populares_clientes"]
+        quantidade_populares = config_cliente["quantidade_populares_clientes"]
+        limite_prod_clientes = config_cliente["limite_prod_clientes"]
+    else:
+        cliente_min_support = config_cliente["min_support"]
+        cliente_min_confidence = config_cliente["min_confidence"]
+        podar_populares = config_cliente["podar_populares"]
+        quantidade_populares = config_cliente["quantidade_populares"]
 
     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
     
@@ -207,7 +231,7 @@ def gerar_relatorios_cross_selling(nome_cliente):
         print("Consultando a tabela VENDAS...")
 
         query = f"""
-        SELECT id_venda, id_cliente, data_venda, total_venda, id_loja
+        SELECT id_venda, id_cliente, data_venda, total_venda, id_loja, tipo_venda, situacao_venda
         FROM {schema}.venda
         """
         
@@ -527,6 +551,8 @@ def gerar_relatorios_cross_selling(nome_cliente):
         metadata = pd.DataFrame([{
             'data_execucao': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'tipo_analise': tipo_analise,
+            'metodo_analise': 'Baseado em ' + tipo_analise,
+            'versao_exportacao': '2.0',  # Indica que é a versão padronizada com todas as colunas
             'total_skus_ativos': skus_ativos_ultimo_ano,
             'skus_nas_regras': len(skus_ativos_nas_regras),
             'cobertura_percentual_regras': cobertura_skus,
@@ -542,7 +568,7 @@ def gerar_relatorios_cross_selling(nome_cliente):
         
         return metadata
 
-    def create_customer_based_recommendations(df_vendas_completo, min_support=cliente_min_support, min_confidence=cliente_min_confidence):
+    def create_customer_based_recommendations(df_vendas_completo, min_support=cliente_min_support, min_confidence=cliente_min_confidence, limite_prod_clientes=limite_prod_clientes):
         """
         Análise de Market Basket baseada em clientes - HISTÓRICO CONSOLIDADO
         
@@ -587,17 +613,17 @@ def gerar_relatorios_cross_selling(nome_cliente):
         print(f"\nMatriz criada: {len(basket_consolidado)} clientes x {len(basket_consolidado.columns)} produtos")
         
         # Limitar a 50 produtos por cliente
-        print(f"Limitando a um máximo de 50 produtos por cliente dos {len(basket_consolidado.columns)} totais")
+        print(f"Limitando a um máximo de {limite_prod_clientes} produtos por cliente dos {len(basket_consolidado.columns)} totais")
         for cliente_idx in basket_consolidado.index:
             produtos_do_cliente = basket_consolidado.loc[cliente_idx]
             # Obter produtos que são True (comprados pelo cliente)
             produtos_comprados = [col for col in basket_consolidado.columns if produtos_do_cliente[col] == True]
-            
-            # Se o cliente comprou mais de 50 produtos, limitar para 50
-            if len(produtos_comprados) > 50:
-                # Produtos para manter (primeiros 50)
-                produtos_para_manter = produtos_comprados[:50]
-                
+
+            # Se o cliente comprou mais de limite_prod_clientes produtos, limitar para limite_prod_clientes
+            if len(produtos_comprados) > limite_prod_clientes:
+                # Produtos para manter (primeiros limite_prod_clientes)
+                produtos_para_manter = produtos_comprados[:limite_prod_clientes]
+
                 # Zerar todos os produtos primeiro
                 basket_consolidado.loc[cliente_idx, :] = False
                 
@@ -719,6 +745,8 @@ def gerar_relatorios_cross_selling(nome_cliente):
                 'perc_clientes_ambos_produtos'
             ]].sort_values('confianca', ascending=False)
             
+            # As colunas de frequência serão adicionadas na padronização geral
+            
             print(f"\nRegras de associação geradas: {len(result_df)}")
             print(f"Interpretação: 'Clientes que compraram o produto X também compraram o produto Y'")
             
@@ -749,7 +777,7 @@ def gerar_relatorios_cross_selling(nome_cliente):
         print(f"Total de produtos únicos: {len(basket_bool.columns)}")
         
         # Aplicar FP-Growth para encontrar itemsets frequentes
-        try:
+        try:  
             # Usar a versão paralela do fpgrowth para otimizar o processamento
             start_time = datetime.now()
             print(f"Iniciando processamento paralelo em {start_time}")
@@ -831,6 +859,8 @@ def gerar_relatorios_cross_selling(nome_cliente):
             'freq_ambos_produtos'
         ]].sort_values('confianca', ascending=False)
         
+        # As colunas de clientes serão adicionadas na padronização geral
+        
         print(f"\nRegras de associação geradas: {len(result_df)}")
         print(f"Interpretação: 'Produtos frequentemente comprados juntos na mesma transação'")
         
@@ -891,12 +921,60 @@ def gerar_relatorios_cross_selling(nome_cliente):
             if podar_populares and len(produtos_para_podar) > 0:
                 df_vendas_completo_filtrado = df_vendas_completo[~df_vendas_completo['id_produto'].isin(produtos_para_podar)]
                 print(f"Removidos {len(df_vendas_completo) - len(df_vendas_completo_filtrado)} registros de produtos populares da análise")
-                rules = create_customer_based_recommendations(df_vendas_completo_filtrado, cliente_min_support, cliente_min_confidence)
+                rules = create_customer_based_recommendations(df_vendas_completo_filtrado, cliente_min_support, cliente_min_confidence, limite_prod_clientes)
             else:
-                rules = create_customer_based_recommendations(df_vendas_completo, cliente_min_support, cliente_min_confidence)
+                rules = create_customer_based_recommendations(df_vendas_completo, cliente_min_support, cliente_min_confidence, limite_prod_clientes)
             tipo_analise = "Clientes"
 
         if not rules.empty: 
+            # Padronizar colunas para garantir consistência na exportação
+            if tipo_analise == "Clientes":
+                # Para análise baseada em clientes, criar colunas de frequência
+                print("Padronizando estrutura de saída para análise baseada em clientes...")
+                # Calcular frequências para análise baseada em clientes
+                produto_freq = df_vendas_completo['id_produto'].value_counts().to_dict()
+                
+                # Garantir que colunas de frequência também estejam presentes
+                if 'freq_produto_base' not in rules.columns:
+                    # Adicionar colunas de frequência que existem na análise por produtos
+                    rules['freq_produto_base'] = rules['produto_base'].apply(lambda x: produto_freq.get(x, 0))
+                    rules['freq_produto_recomendado'] = rules['produto_recomendado'].apply(lambda x: produto_freq.get(x, 0))
+                    
+                    # Calcular frequência de ambos os produtos (aproximação)
+                    rules['freq_ambos_produtos'] = rules.apply(
+                        lambda row: len(df_vendas_completo[
+                            (df_vendas_completo['id_produto'] == row['produto_base']) | 
+                            (df_vendas_completo['id_produto'] == row['produto_recomendado'])
+                        ].drop_duplicates('id_cliente')), 
+                        axis=1
+                    )
+            
+            elif tipo_analise == "Produtos":
+                # Para análise baseada em produtos, criar colunas de clientes
+                print("Padronizando estrutura de saída para análise baseada em produtos...")
+                
+                # Criar dicionário de id_produto para quantidades de clientes que compraram cada produto
+                produto_clientes = df_vendas_completo.groupby('id_produto')['id_cliente'].nunique().to_dict()
+                total_clientes = df_vendas_completo['id_cliente'].nunique()
+                
+                # Adicionar colunas de clientes que existem na análise por clientes
+                rules['qtd_clientes_produto_base'] = rules['produto_base'].apply(lambda x: produto_clientes.get(x, 0))
+                rules['qtd_clientes_produto_recomendado'] = rules['produto_recomendado'].apply(lambda x: produto_clientes.get(x, 0))
+                
+                # Calcular quantidade de clientes que compraram ambos os produtos
+                rules['qtd_clientes_ambos_produtos'] = rules.apply(
+                    lambda row: len(df_vendas_completo[
+                        (df_vendas_completo['id_produto'] == row['produto_base']) | 
+                        (df_vendas_completo['id_produto'] == row['produto_recomendado'])
+                    ]['id_cliente'].unique()),
+                    axis=1
+                )
+                
+                # Calcular percentuais
+                rules['perc_clientes_produto_base'] = (rules['qtd_clientes_produto_base'] / total_clientes * 100).round(2)
+                rules['perc_clientes_produto_recomendado'] = (rules['qtd_clientes_produto_recomendado'] / total_clientes * 100).round(2)
+                rules['perc_clientes_ambos_produtos'] = (rules['qtd_clientes_ambos_produtos'] / total_clientes * 100).round(2)
+            
             # Adicionar descrições dos produtos e categorias
             rules['nome_produto_base'] = rules['produto_base'].map(produto_nomes)
             rules['categoria_produto_base'] = rules['produto_base'].map(produto_categorias)
@@ -907,18 +985,29 @@ def gerar_relatorios_cross_selling(nome_cliente):
             rules['suporte'] = rules['suporte'].round(5)
             rules['confianca'] = rules['confianca'].round(2)
             rules['lift'] = rules['lift'].round(2)
-            # Formatar colunas específicas dependendo do tipo de análise
-            if 'freq_produto_base' in rules.columns:
-                rules['freq_produto_base'] = rules['freq_produto_base'].round(5)
-                rules['freq_produto_recomendado'] = rules['freq_produto_recomendado'].round(5)
-                rules['freq_ambos_produtos'] = rules['freq_ambos_produtos'].round(5)
             
-            # Usar a função centralizada para calcular cobertura e metadata
-            metadata = calcular_cobertura_e_metadata(rules, df_vendas_completo, df_historico_estoque, tipo_analise)
+            # Formatar colunas de frequência
+            rules['freq_produto_base'] = rules['freq_produto_base'].round(5)
+            rules['freq_produto_recomendado'] = rules['freq_produto_recomendado'].round(5)
+            rules['freq_ambos_produtos'] = rules['freq_ambos_produtos'].round(5)
+            
+            # Formatar colunas de clientes
+            if 'qtd_clientes_produto_base' in rules.columns:
+                rules['qtd_clientes_produto_base'] = rules['qtd_clientes_produto_base'].astype(int)
+                rules['qtd_clientes_produto_recomendado'] = rules['qtd_clientes_produto_recomendado'].astype(int)
+                rules['qtd_clientes_ambos_produtos'] = rules['qtd_clientes_ambos_produtos'].astype(int)
+                rules['perc_clientes_produto_base'] = rules['perc_clientes_produto_base'].round(2)
+                rules['perc_clientes_produto_recomendado'] = rules['perc_clientes_produto_recomendado'].round(2)
+                rules['perc_clientes_ambos_produtos'] = rules['perc_clientes_ambos_produtos'].round(2)
+            
+            if tipo_analise == "Produtos":
+                # Usar a função centralizada para calcular cobertura e metadata apenas para produtos
+                metadata = calcular_cobertura_e_metadata(rules, df_vendas_completo, df_historico_estoque, tipo_analise)
 
-            # Salvar resultados no diretorio do cliente
-            rules.to_csv(os.path.join(diretorio_cliente, f"{nome_cliente}_cross_selling_rules.csv"), index=False)
-            metadata.to_csv(os.path.join(diretorio_cliente, f"{nome_cliente}_cross_selling_metadata.csv"), index=False)
+            # Salvar resultados no diretorio do cliente com o tipo de análise no nome do arquivo
+            # Adicionando o sufixo "completo" para indicar que contém todas as colunas
+            rules.to_csv(os.path.join(diretorio_cliente, f"{nome_cliente}_cross_selling_{tipo_analise.lower()}_completo_rules.csv"), index=False)
+            metadata.to_csv(os.path.join(diretorio_cliente, f"{nome_cliente}_cross_selling_{tipo_analise.lower()}_metadata.csv"), index=False)
             
             # Se houve poda por produtos populares, salvar lista de produtos podados
             if podar_populares and len(produtos_para_podar) > 0:

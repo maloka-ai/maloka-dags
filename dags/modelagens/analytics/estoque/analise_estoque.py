@@ -1152,7 +1152,7 @@ def gerar_relatorios_estoque(nome_cliente):
     # estoque_com_vendas.to_csv(caminho_arquivo_estoque, index=False)
     print(f"\nRelatorio de estoque detalhado gerado para {nome_cliente}")
 
-    # Exportar resultados para o banco de dados no esquema maloka_analytics
+    # Exportar resultados para os esquemas maloka_analytics e maloka_core
     print("\n=== EXPORTANDO ANÁLISE DE ESTOQUE PARA O BANCO DE DADOS ===")
     try:
         # Reconectar ao PostgreSQL
@@ -1168,32 +1168,69 @@ def gerar_relatorios_estoque(nome_cliente):
         # Criar cursor
         cursor = conn.cursor()
         
-        # Verificar se o esquema maloka_analytics existe, caso contrário, criar
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = 'maloka_analytics')")
-        schema_existe = cursor.fetchone()[0]
-        
-        if not schema_existe:
-            print(f"Esquema maloka_analytics não existe no banco {database}. Criando...")
-            cursor.execute("CREATE SCHEMA maloka_analytics")
-        else: 
-            print(f"Esquema maloka_analytics já existe no banco {database}.")
+        # Verificar e criar os esquemas necessários (maloka_analytics e maloka_core)
+        for schema in ['maloka_analytics', 'maloka_core']:
+            cursor.execute(f"SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = '{schema}')")
+            schema_existe = cursor.fetchone()[0]
+            
+            if not schema_existe:
+                print(f"Esquema {schema} não existe no banco {database}. Criando...")
+                cursor.execute(f"CREATE SCHEMA {schema}")
+            else: 
+                print(f"Esquema {schema} já existe no banco {database}.")
         
         # Verificar se a tabela já existe no esquema maloka_analytics
         cursor.execute("SELECT EXISTS(SELECT * FROM information_schema.tables WHERE table_name='analise_estoque' AND table_schema='maloka_analytics')")
-        tabela_existe = cursor.fetchone()[0]
+        tabela_analytics_existe = cursor.fetchone()[0]
         
-        if tabela_existe:
-            # Verificar se as novas colunas existem na tabela
-            cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='analise_estoque' AND table_schema='maloka_analytics'")
-            colunas_existentes = [row[0] for row in cursor.fetchall()]
-            
-            # Adicionar colunas que não existem ainda
-            for coluna in estoque_com_vendas.columns:
-                if coluna.lower() not in [col.lower() for col in colunas_existentes]:
-                    print(f"Adicionando nova coluna: {coluna}")
+        # Verificar se a tabela já existe no esquema maloka_core
+        cursor.execute("SELECT EXISTS(SELECT * FROM information_schema.tables WHERE table_name='analise_estoque' AND table_schema='maloka_core')")
+        tabela_core_existe = cursor.fetchone()[0]
+        
+        # Função auxiliar para verificar e atualizar uma tabela em um determinado esquema
+        def verificar_atualizar_tabela(schema, tabela_existe):
+            if tabela_existe:
+                # Verificar se as novas colunas existem na tabela
+                cursor.execute(f"SELECT column_name FROM information_schema.columns WHERE table_name='analise_estoque' AND table_schema='{schema}'")
+                colunas_existentes = [row[0] for row in cursor.fetchall()]
+                
+                # Adicionar colunas que não existem ainda
+                for coluna in estoque_com_vendas.columns:
+                    if coluna.lower() not in [col.lower() for col in colunas_existentes]:
+                        print(f"Adicionando nova coluna: {coluna} em {schema}.analise_estoque")
+                        
+                        # Determinar o tipo de dados da coluna
+                        dtype = estoque_com_vendas[coluna].dtype
+                        if 'int' in str(dtype):
+                            tipo = 'INTEGER'
+                        elif 'float' in str(dtype):
+                            tipo = 'NUMERIC'  # NUMERIC é melhor para precisão
+                        elif 'datetime' in str(dtype):
+                            tipo = 'TIMESTAMP'
+                        elif 'bool' in str(dtype):
+                            tipo = 'BOOLEAN'
+                        else:
+                            tipo = 'TEXT'
+                                
+                        # Executar o ALTER TABLE para adicionar a coluna
+                        try:
+                            cursor.execute(f'ALTER TABLE {schema}.analise_estoque ADD COLUMN "{coluna}" {tipo}')
+                            conn.commit()
+                            print(f"Coluna {coluna} adicionada com sucesso em {schema}!")
+                        except Exception as e:
+                            print(f"Erro ao adicionar coluna {coluna} em {schema}: {e}")
+                            conn.rollback()
                     
-                    # Determinar o tipo de dados da coluna
-                    dtype = estoque_com_vendas[coluna].dtype
+                # Limpar os dados existentes
+                print(f"Limpando dados existentes na tabela {schema}.analise_estoque...")
+                cursor.execute(f"TRUNCATE TABLE {schema}.analise_estoque")
+                conn.commit()
+            else:
+                # Criar a tabela se não existir
+                print(f"Criando tabela analise_estoque no esquema {schema}...")
+                # Definir os tipos de dados para cada coluna com base nos tipos do DataFrame
+                colunas = []
+                for coluna, dtype in estoque_com_vendas.dtypes.items():
                     if 'int' in str(dtype):
                         tipo = 'INTEGER'
                     elif 'float' in str(dtype):
@@ -1204,162 +1241,209 @@ def gerar_relatorios_estoque(nome_cliente):
                         tipo = 'BOOLEAN'
                     else:
                         tipo = 'TEXT'
-                            
-                    # Executar o ALTER TABLE para adicionar a coluna
-                    try:
-                        cursor.execute(f'ALTER TABLE maloka_analytics.analise_estoque ADD COLUMN "{coluna}" {tipo}')
-                        conn.commit()
-                        print(f"Coluna {coluna} adicionada com sucesso!")
-                    except Exception as e:
-                        print(f"Erro ao adicionar coluna {coluna}: {e}")
-                        conn.rollback()
+                    colunas.append(f'"{coluna}" {tipo}')
                 
-            # Limpar os dados existentes
-            print("Limpando dados existentes...")
-            cursor.execute("TRUNCATE TABLE maloka_analytics.analise_estoque")
-            conn.commit()
-        else:
-            # Criar a tabela se não existir
-            print("Criando tabela analise_estoque no esquema maloka_analytics...")
-            # Definir os tipos de dados para cada coluna com base nos tipos do DataFrame
-            colunas = []
-            for coluna, dtype in estoque_com_vendas.dtypes.items():
-                if 'int' in str(dtype):
-                    tipo = 'INTEGER'
-                elif 'float' in str(dtype):
-                    tipo = 'NUMERIC'  # NUMERIC é melhor para precisão
-                elif 'datetime' in str(dtype):
-                    tipo = 'TIMESTAMP'
-                elif 'bool' in str(dtype):
-                    tipo = 'BOOLEAN'
-                else:
-                    tipo = 'TEXT'
-                colunas.append(f'"{coluna}" {tipo}')
-            
-            create_table_query = f"""
-            CREATE TABLE maloka_analytics.analise_estoque (
-                {", ".join(colunas)}
-            )
-            """
-            cursor.execute(create_table_query)
-        
-        # Otimização da inserção de dados para a tabela de análise de estoque
-        print(f"Inserindo {len(estoque_com_vendas)} registros na tabela analise_estoque...")
-        
-        # Preparar as colunas para inserção
-        colunas = [f'"{col}"' for col in estoque_com_vendas.columns]
-        
-        # Otimizar a tabela temporariamente para inserção rápida
-        try:
-            print("Otimizando configurações da tabela para inserção rápida...")
-            cursor.execute("ALTER TABLE maloka_analytics.analise_estoque SET UNLOGGED")
-            cursor.execute("SET maintenance_work_mem = '256MB'")
-            cursor.execute("SET synchronous_commit = off")
-        except Exception as e:
-            print(f"Aviso ao otimizar tabela: {e}")
-        
-        # Método 1: Usar COPY FROM (Pull Processing)
-        try:
-            print("Tentando inserção usando COPY FROM (método mais rápido)...")
-            
-            # Criar arquivo temporário para o COPY
-            with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
-                temp_path = temp_file.name
-                # Salvar DataFrame para CSV temporário
-                estoque_com_vendas.to_csv(temp_path, index=False, header=False, na_rep='\\N')
-            
-            # Abrir arquivo em modo de leitura
-            with open(temp_path, 'r') as f:
-                # Usar COPY para inserir dados
-                cursor.copy_expert(
-                    f"COPY maloka_analytics.analise_estoque ({', '.join(colunas)}) FROM STDIN WITH CSV",
-                    f
+                create_table_query = f"""
+                CREATE TABLE {schema}.analise_estoque (
+                    {", ".join(colunas)}
                 )
-            
-            # Commit uma única vez
-            conn.commit()
-            
-            # Remover arquivo temporário
-            os.unlink(temp_path)
-            
-            print(f"Todos os {len(estoque_com_vendas)} registros inseridos com sucesso via COPY FROM!")
-            
-        except Exception as e:
-            print(f"Erro ao usar COPY FROM: {e}")
-            print("Tentando método alternativo usando multiprocessing...")
-            
-            # Reverter qualquer transação pendente
-            conn.rollback()
-            
-            # Método 2: Usar multiprocessing para INSERT paralelo
-            
-            # Converter NaN para None
-            df_upload = estoque_com_vendas.replace({np.nan: None})
-            
-            # Preparar a query para INSERT
-            placeholders = ", ".join(["%s"] * len(df_upload.columns))
-            insert_query = f"""
-            INSERT INTO maloka_analytics.analise_estoque ({", ".join(colunas)})
-            VALUES ({placeholders})
-            """
-            
-            # Criar lista de tuplas com os valores
-            valores = [tuple(row) for _, row in df_upload.iterrows()]
-            
-            # Configurar tamanho de lote baseado no número de núcleos da CPU
-            num_cores = cpu_count()
-            print(f"Usando {num_cores} núcleos de CPU para processamento paralelo")
-            
-            # Determinar tamanho do lote (dividir os dados igualmente entre cores)
-            records_per_core = max(1000, len(valores) // (num_cores * 2))
-            batch_size = min(10000, records_per_core)  # Limitar a 10.000 por lote
-            
-            # Criar lotes para processamento paralelo
-            lotes = []
-            for i in range(0, len(valores), batch_size):
-                batch = valores[i:i+batch_size]
+                """
+                cursor.execute(create_table_query)
+                conn.commit()
                 
-                # Configuração da conexão ao banco
-                db_config = {
-                    'host': DB_CONFIG_MALOKA['host'],
-                    'database': database,
-                    'user': DB_CONFIG_MALOKA['user'],
-                    'password': DB_CONFIG_MALOKA['password'],
-                    'port': DB_CONFIG_MALOKA['port']
-                }
-                
-                # Adicionar lote à lista de tarefas
-                lotes.append((batch, db_config, insert_query, i))
+        # Verificar e atualizar tabela em maloka_analytics
+        verificar_atualizar_tabela('maloka_analytics', tabela_analytics_existe)
+        
+        # Verificar e atualizar tabela em maloka_core
+        verificar_atualizar_tabela('maloka_core', tabela_core_existe)
+        
+        # Função auxiliar para inserir dados em um esquema específico
+        def inserir_dados_no_esquema(schema):
+            # Otimização da inserção de dados para a tabela de análise de estoque
+            print(f"Inserindo {len(estoque_com_vendas)} registros na tabela {schema}.analise_estoque...")
             
-            # Iniciar processamento paralelo
-            start_time = datetime.now()
-            print(f"Iniciando inserção paralela com {len(lotes)} lotes...")
+            # Preparar as colunas para inserção
+            colunas = [f'"{col}"' for col in estoque_com_vendas.columns]
             
-            # Usar um pool de processos
-            with Pool(processes=num_cores) as pool:
-                resultados = pool.map(processar_lote, lotes)
-                
-                # Contar registros inseridos e verificar erros
-                total_inseridos = 0
-                erros = []
-                
-                for quantidade, erro in resultados:
-                    total_inseridos += quantidade
-                    if erro:
-                        erros.append(erro)
-                
-                elapsed = (datetime.now() - start_time).total_seconds()
-                print(f"Inseridos {total_inseridos} de {len(valores)} registros em {elapsed:.2f} segundos")
-                
-                if erros:
-                    print(f"Ocorreram {len(erros)} erros durante a inserção")
-                    for erro in erros[:5]:  # Mostrar apenas os 5 primeiros erros
-                        print(f"- {erro}")
+            # Otimizar a tabela temporariamente para inserção rápida
+            try:
+                print(f"Otimizando configurações da tabela {schema}.analise_estoque para inserção rápida...")
+                cursor.execute(f"ALTER TABLE {schema}.analise_estoque SET UNLOGGED")
+                cursor.execute("SET maintenance_work_mem = '256MB'")
+                cursor.execute("SET synchronous_commit = off")
+            except Exception as e:
+                print(f"Aviso ao otimizar tabela {schema}.analise_estoque: {e}")
             
-            if total_inseridos < len(valores):
-                print(f"Atenção: {len(valores) - total_inseridos} registros não foram inseridos")
+            # Método 1: Usar COPY FROM (Pull Processing)
+            try:
+                print(f"Tentando inserção usando COPY FROM para {schema}.analise_estoque (método mais rápido)...")
+                
+                # Criar arquivo temporário para o COPY
+                with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
+                    temp_path = temp_file.name
+                    # Salvar DataFrame para CSV temporário
+                    estoque_com_vendas.to_csv(temp_path, index=False, header=False, na_rep='\\N')
+                
+                # Abrir arquivo em modo de leitura
+                with open(temp_path, 'r') as f:
+                    # Usar COPY para inserir dados
+                    cursor.copy_expert(
+                        f"COPY {schema}.analise_estoque ({', '.join(colunas)}) FROM STDIN WITH CSV",
+                        f
+                    )
+                
+                # Commit uma única vez
+                conn.commit()
+                
+                # Remover arquivo temporário apenas na última iteração
+                if schema == 'maloka_core':
+                    os.unlink(temp_path)
+                
+                print(f"Todos os {len(estoque_com_vendas)} registros inseridos com sucesso via COPY FROM em {schema}!")
+                return True
+                
+            except Exception as e:
+                print(f"Erro ao usar COPY FROM para {schema}.analise_estoque: {e}")
+                print(f"Tentando método alternativo usando multiprocessing para {schema}...")
+                
+                # Reverter qualquer transação pendente
+                conn.rollback()
+                
+                # Método 2: Usar multiprocessing para INSERT paralelo
+                
+                # Converter NaN para None
+                df_upload = estoque_com_vendas.replace({np.nan: None})
+                
+                # Preparar a query para INSERT
+                placeholders = ", ".join(["%s"] * len(df_upload.columns))
+                insert_query = f"""
+                INSERT INTO {schema}.analise_estoque ({", ".join(colunas)})
+                VALUES ({placeholders})
+                """
+                return False, insert_query, df_upload
+        
+        # Inserir dados em maloka_analytics
+        success_analytics = inserir_dados_no_esquema('maloka_analytics')
+        
+        # Se o método COPY FROM falhou, precisamos usar o método multiprocessing
+        if not isinstance(success_analytics, bool):
+            _, insert_query_analytics, df_upload = success_analytics
+        else:
+            insert_query_analytics = None
+            df_upload = None
+        
+        # Inserir dados em maloka_core
+        success_core = inserir_dados_no_esquema('maloka_core')
+        
+        # Se o método COPY FROM falhou para maloka_core, usar o método multiprocessing
+        if not isinstance(success_core, bool):
+            _, insert_query_core, df_upload = success_core
+        
+        # Se precisamos usar o método multiprocessing em algum dos esquemas
+        if insert_query_analytics or (not isinstance(success_core, bool) and not isinstance(success_analytics, bool)):
+            # Preparamos os dados para multiprocessing apenas uma vez
+            
+            # Função auxiliar para fazer inserção com multiprocessing
+            def inserir_com_multiprocessing(schema, insert_query):
+                print(f"Iniciando inserção com multiprocessing para {schema}.analise_estoque...")
+                # Criar lista de tuplas com os valores
+                valores = [tuple(row) for _, row in df_upload.iterrows()]
+                
+                # Configurar tamanho de lote baseado no número de núcleos da CPU
+                num_cores = cpu_count()
+                print(f"Usando {num_cores} núcleos de CPU para processamento paralelo")
+                
+                # Determinar tamanho do lote (dividir os dados igualmente entre cores)
+                records_per_core = max(1000, len(valores) // (num_cores * 2))
+                batch_size = min(10000, records_per_core)  # Limitar a 10.000 por lote
+                
+                # Criar lotes para processamento paralelo
+                lotes = []
+                for i in range(0, len(valores), batch_size):
+                    batch = valores[i:i+batch_size]
+                    
+                    # Configuração da conexão ao banco
+                    db_config = {
+                        'host': DB_CONFIG_MALOKA['host'],
+                        'database': database,
+                        'user': DB_CONFIG_MALOKA['user'],
+                        'password': DB_CONFIG_MALOKA['password'],
+                        'port': DB_CONFIG_MALOKA['port']
+                    }
+                    
+                    # Adicionar lote à lista de tarefas
+                    lotes.append((batch, db_config, insert_query, i))
+                
+                # Iniciar processamento paralelo
+                start_time = datetime.now()
+                print(f"Iniciando inserção paralela com {len(lotes)} lotes para {schema}...")
+                
+                # Usar um pool de processos
+                with Pool(processes=num_cores) as pool:
+                    resultados = pool.map(processar_lote, lotes)
+                    
+                    # Contar registros inseridos e verificar erros
+                    total_inseridos = 0
+                    erros = []
+                    
+                    for quantidade, erro in resultados:
+                        total_inseridos += quantidade
+                        if erro:
+                            erros.append(erro)
+                            
+                return total_inseridos, erros, start_time
+            
+            # Se precisamos usar multiprocessing para qualquer um dos esquemas
+            if insert_query_analytics is not None or not isinstance(success_core, bool):
+                # Variáveis para rastrear resultados gerais
+                total_registros_processados = 0
+                total_registros_inseridos = 0
+                todos_erros = []
+                
+                # Se precisamos usar multiprocessing para maloka_analytics
+                if insert_query_analytics is not None:
+                    total_inseridos_analytics, erros_analytics, start_time_analytics = inserir_com_multiprocessing(
+                        'maloka_analytics', insert_query_analytics)
+                    
+                    elapsed_analytics = (datetime.now() - start_time_analytics).total_seconds()
+                    print(f"Inseridos {total_inseridos_analytics} registros em maloka_analytics em {elapsed_analytics:.2f} segundos")
+                    
+                    if erros_analytics:
+                        print(f"Ocorreram {len(erros_analytics)} erros durante a inserção em maloka_analytics")
+                        for erro in erros_analytics[:5]:  # Mostrar apenas os 5 primeiros erros
+                            print(f"- {erro}")
+                    
+                    total_registros_inseridos += total_inseridos_analytics
+                    todos_erros.extend(erros_analytics)
+                
+                # Se precisamos usar multiprocessing para maloka_core
+                if not isinstance(success_core, bool):
+                    total_inseridos_core, erros_core, start_time_core = inserir_com_multiprocessing(
+                        'maloka_core', insert_query_core)
+                    
+                    elapsed_core = (datetime.now() - start_time_core).total_seconds()
+                    print(f"Inseridos {total_inseridos_core} registros em maloka_core em {elapsed_core:.2f} segundos")
+                    
+                    if erros_core:
+                        print(f"Ocorreram {len(erros_core)} erros durante a inserção em maloka_core")
+                        for erro in erros_core[:5]:  # Mostrar apenas os 5 primeiros erros
+                            print(f"- {erro}")
+                    
+                    total_registros_inseridos += total_inseridos_core
+                    todos_erros.extend(erros_core)
+                
+                # Calcular o total de registros processados
+                total_registros_processados = len(df_upload) * (
+                    (1 if insert_query_analytics is not None else 0) + 
+                    (1 if not isinstance(success_core, bool) else 0)
+                )
+                
+                if total_registros_inseridos < total_registros_processados:
+                    print(f"Atenção: {total_registros_processados - total_registros_inseridos} registros não foram inseridos")
+                else:
+                    print("Todos os registros foram inseridos com sucesso em ambos os esquemas!")
             else:
-                print("Todos os registros foram inseridos com sucesso!")
+                print("Todos os registros foram inseridos com sucesso via COPY FROM em ambos os esquemas!")
         
         # Restaurar configurações da tabela e otimizar para consultas
         print("Restaurando configurações e otimizando para consultas...")
@@ -1368,21 +1452,28 @@ def gerar_relatorios_estoque(nome_cliente):
             cursor.execute("SET maintenance_work_mem = '64MB'")  # Valor padrão
             cursor.execute("SET synchronous_commit = on")  # Valor padrão
             
-            # Converter de volta para LOGGED para garantir durabilidade
-            cursor.execute("ALTER TABLE maloka_analytics.analise_estoque SET LOGGED")
-            
-            # # Criar índices para melhorar performance de consultas
-            # print("Criando índices para otimizar consultas futuras...")
-            # cursor.execute("CREATE INDEX IF NOT EXISTS idx_analise_estoque_id_sku ON maloka_analytics.analise_estoque (id_sku)")
-            # cursor.execute("CREATE INDEX IF NOT EXISTS idx_analise_estoque_curva_abc ON maloka_analytics.analise_estoque (curva_abc)")
-            # cursor.execute("CREATE INDEX IF NOT EXISTS idx_analise_estoque_situacao ON maloka_analytics.analise_estoque (situacao_do_produto)")
-            
-            # Analisar tabela para otimizar planejamento de consultas
-            # print("Analisando tabela para otimizar consultas...")
-            # cursor.execute("ANALYZE maloka_analytics.analise_estoque")
+            # Restaurar configurações para ambos os esquemas
+            for schema in ['maloka_analytics', 'maloka_core']:
+                try:
+                    # Converter de volta para LOGGED para garantir durabilidade
+                    cursor.execute(f"ALTER TABLE {schema}.analise_estoque SET LOGGED")
+                    print(f"Tabela {schema}.analise_estoque convertida para LOGGED com sucesso")
+                    
+                    # # Criar índices para melhorar performance de consultas
+                    # print(f"Criando índices para otimizar consultas futuras em {schema}...")
+                    # cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_analise_estoque_id_sku ON {schema}.analise_estoque (id_sku)")
+                    # cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_analise_estoque_curva_abc ON {schema}.analise_estoque (curva_abc)")
+                    # cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_analise_estoque_situacao ON {schema}.analise_estoque (situacao_do_produto)")
+                    
+                    # Analisar tabela para otimizar planejamento de consultas
+                    # print(f"Analisando tabela {schema}.analise_estoque para otimizar consultas...")
+                    # cursor.execute(f"ANALYZE {schema}.analise_estoque")
+                    
+                except Exception as e:
+                    print(f"Aviso ao restaurar configurações para {schema}: {e}")
             
         except Exception as e:
-            print(f"Aviso ao restaurar configurações: {e}")
+            print(f"Aviso ao restaurar configurações gerais: {e}")
         
         print(f"Dados de análise de estoque inseridos com sucesso! Total de {len(estoque_com_vendas)} registros.")
         
