@@ -228,8 +228,14 @@ class DatabaseClient:
                 password=config['password']
             )
             
-            # Executa a query usando pandas read_sql_query
-            df = pd.read_sql_query(query, conn, params=params)
+            # Executa a query usando pandas read_sql_query com opções de conversão seguras
+            df = pd.read_sql_query(
+                query, 
+                conn, 
+                params=params,
+                # Converte arrays para strings para evitar problemas de conversão
+                dtype_backend='numpy_nullable'  # Usa tipos que lidam melhor com valores nulos
+            )
             log_info(f"Query executada com sucesso. Registros retornados: {len(df)}", self.context)
             
             # Fecha a conexão
@@ -271,7 +277,8 @@ def verificar_atualizacao_permitida(cliente_id: str, timeout_minutos: int = 15, 
     
     try:
         df = db_client.execute_query(query, cliente_id)
-        total_pendentes = df['total_pendentes'].iloc[0] if not df.empty else 0
+        # Converte explicitamente para inteiro nativo do Python para evitar problemas de tipo do NumPy
+        total_pendentes = int(df['total_pendentes'].iloc[0]) if not df.empty else 0
         
         if total_pendentes > 0:
             log_info(f"Encontrados {total_pendentes} registros com data_execucao_modelagem como None. Modelagem deve ser executada.", context)
@@ -332,7 +339,8 @@ def atualizar_todos_registros_pendentes(data_execucao=None, cliente_id=None, con
         params = {}
         
         count_df = db_client.execute_query(count_query, params=params)
-        total_registros = count_df['total_registros'].iloc[0] if not count_df.empty else 0
+        # Converte explicitamente para inteiro nativo do Python para evitar problemas de tipo do NumPy
+        total_registros = int(count_df['total_registros'].iloc[0]) if not count_df.empty else 0
         
         if total_registros == 0:
             log_info("Nenhum registro encontrado na tabela", context)
