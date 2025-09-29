@@ -16,7 +16,10 @@ from multiprocessing import Pool, cpu_count
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
 from dags.modelagens.analytics.config_clientes import CLIENTES
-from config.airflow_variables import DB_CONFIG_MALOKA
+from config.airflow_variables import get_db_config_maloka_instance
+
+# Obtém a configuração inicial do banco
+DB_CONFIG_MALOKA = get_db_config_maloka_instance()
 
 # Função auxiliar para processar lotes em paralelo
 def processar_lote(args):
@@ -106,11 +109,11 @@ def gerar_analise_previsao_retorno(nome_cliente):
         num_colunas = len(df_vendas.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_vendas.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_vendas.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_vendas.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_vendas.head())
         
         # Exportar para Excel
         #df_vendas.to_excel("df_vendas.xlsx", index=False)
@@ -131,11 +134,11 @@ def gerar_analise_previsao_retorno(nome_cliente):
         num_colunas = len(df_clientes_info.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_clientes_info.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_clientes_info.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_clientes_info.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_clientes_info.head())
         
         # Exportar para Excel
         #df_clientes.to_excel("df_clientes.xlsx", index=False)

@@ -12,10 +12,14 @@ import io
 import tempfile
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
 from dags.modelagens.analytics.config_clientes import CLIENTES
-from config.airflow_variables import DB_CONFIG_MALOKA
+from config.airflow_variables import get_db_config_maloka_instance
+
+# Obtém a configuração inicial do banco
+DB_CONFIG_MALOKA = get_db_config_maloka_instance()
 
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', message='pandas only supports SQLAlchemy connectable')
 
 # Função auxiliar para processar lotes em paralelo
 def processar_lote(args):
@@ -101,11 +105,11 @@ def gerar_relatorios_estoque(nome_cliente):
         num_colunas = len(df_vendas.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_vendas.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_vendas.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_vendas.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_vendas.head())
         
         # EXPORTAR EXCEL
         # df_vendas.to_excel("df_vendas.xlsx", index=False)
@@ -129,11 +133,11 @@ def gerar_relatorios_estoque(nome_cliente):
         num_colunas = len(df_venda_itens.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_venda_itens.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_venda_itens.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_venda_itens.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_venda_itens.head())
         
         # EXPORTAR EXCEL
         # df_venda_itens.to_excel("df_venda_itens.xlsx", index=False)
@@ -154,11 +158,11 @@ def gerar_relatorios_estoque(nome_cliente):
         num_colunas = len(df_estoque_movi.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_estoque_movi.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_estoque_movi.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_estoque_movi.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_estoque_movi.head())
         
         # EXPORTAR EXCEL
         # df_estoque_movi.to_excel("df_estoque_movimentos.xlsx", index=False)
@@ -179,11 +183,11 @@ def gerar_relatorios_estoque(nome_cliente):
         num_colunas = len(df_estoque.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_estoque.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_estoque.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_estoque.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_estoque.head())
         
         # EXPORTAR EXCEL
         # df_estoque.to_excel("df_estoque.xlsx", index=False)
@@ -204,11 +208,11 @@ def gerar_relatorios_estoque(nome_cliente):
         num_colunas = len(df_produtos.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_produtos.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_produtos.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_produtos.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_produtos.head())
         
         # EXPORTAR EXCEL
         # df_produtos.to_excel("df_produtos.xlsx", index=False)
@@ -229,11 +233,11 @@ def gerar_relatorios_estoque(nome_cliente):
         num_colunas = len(df_categoria.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_categoria.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_categoria.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_categoria.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_categoria.head())
         
         # EXPORTAR EXCEL
         # df_categoria.to_excel("df_categoria.xlsx", index=False)
@@ -1150,7 +1154,7 @@ def gerar_relatorios_estoque(nome_cliente):
     ###############################
     # caminho_arquivo_estoque = os.path.join(diretorio_cliente, f'{nome_cliente}_analise_estoque.csv')
     # estoque_com_vendas.to_csv(caminho_arquivo_estoque, index=False)
-    print(f"\nRelatorio de estoque detalhado gerado para {nome_cliente}")
+    # print(f"\nRelatorio de estoque detalhado gerado para {nome_cliente}")
 
     # Exportar resultados para os esquemas maloka_analytics e maloka_core
     print("\n=== EXPORTANDO ANÁLISE DE ESTOQUE PARA O BANCO DE DADOS ===")

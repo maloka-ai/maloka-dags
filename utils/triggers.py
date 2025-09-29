@@ -14,11 +14,8 @@ from typing import Dict, Any, Optional
 
 # Adicionar caminho para importações
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# Utiliza a função get_db_config do módulo database para garantir consistência
-from utils.database import get_db_config, atualizar_todos_registros_pendentes, verificar_atualizacao_permitida
-
-# Carrega configuração
-DB_CONFIG_MALOKA = get_db_config()
+# Utiliza a função get_db_config_instance do módulo database para garantir consistência
+from utils.database import get_db_config_instance, atualizar_todos_registros_pendentes, verificar_atualizacao_permitida
 
 # Tenta importar o sistema de logging do Airflow
 try:
@@ -84,7 +81,7 @@ class BancoDadosAtualizadoTrigger(BaseTrigger):
             timeout_minutos (int): Tempo em minutos que deve esperar antes de uma nova tentativa
         """
         super().__init__()
-        # Ignora conn_id - vamos usar DB_CONFIG_MALOKA diretamente
+                    # Ignora conn_id - vamos usar get_db_config_instance com contexto
         self.conn_id = conn_id  # mantido para compatibilidade
         self.cliente_id = cliente_id
         self.intervalo_verificacao = intervalo_verificacao_minutos
@@ -121,7 +118,7 @@ class BancoDadosAtualizadoTrigger(BaseTrigger):
             log_info(f"Verificação {tentativas+1}/{self.max_tentativas} para cliente {self.cliente_id}")
             
             # Verifica se existe um registro com data_execucao_modelagem como None
-            # Usa diretamente DB_CONFIG_MALOKA
+            # Usa get_db_config_instance com contexto
             pode_atualizar = verificar_atualizacao_permitida(
                 cliente_id=self.cliente_id,
                 timeout_minutos=self.timeout_minutos

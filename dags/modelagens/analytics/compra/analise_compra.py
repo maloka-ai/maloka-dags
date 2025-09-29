@@ -10,10 +10,14 @@ from multiprocessing import Pool, cpu_count
 import tempfile
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
 from dags.modelagens.analytics.config_clientes import CLIENTES
-from config.airflow_variables import DB_CONFIG_MALOKA
+from config.airflow_variables import get_db_config_maloka_instance
+
+# Obtém a configuração inicial do banco
+DB_CONFIG_MALOKA = get_db_config_maloka_instance()
 
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', message='pandas only supports SQLAlchemy connectable')
 
 # Função auxiliar para processar lotes em paralelo
 def processar_lote(args):
@@ -102,11 +106,11 @@ def gerar_relatorios_compra(nome_cliente):
         num_colunas = len(df_vendas.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_vendas.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_vendas.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_vendas.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_vendas.head())
         
         # Exportar para Excel
         # df_vendas.to_excel("df_vendas_BD.xlsx", index=False)
@@ -133,11 +137,11 @@ def gerar_relatorios_compra(nome_cliente):
         num_colunas = len(df_venda_itens.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_venda_itens.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_venda_itens.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_venda_itens.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_venda_itens.head())
         
         # Exportar para Excel
         # df_venda_itens.to_excel("df_venda_itens_BD.xlsx", index=False)
@@ -164,11 +168,11 @@ def gerar_relatorios_compra(nome_cliente):
         num_colunas = len(df_produto.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_produto.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_produto.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_produto.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_produto.head())
         
         # Exportar para Excel
         # df_produto.to_excel("df_produto_BD.xlsx", index=False)
@@ -191,11 +195,11 @@ def gerar_relatorios_compra(nome_cliente):
         num_colunas = len(df_compra.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_compra.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_compra.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_compra.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_compra.head())
         
         # Exportar para Excel
         # df_compra.to_excel("df_compra_BD.xlsx", index=False)
@@ -215,11 +219,11 @@ def gerar_relatorios_compra(nome_cliente):
         num_colunas = len(df_compra_item.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_compra_item.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_compra_item.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_compra_item.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_compra_item.head())
         
         # Exportar para Excel
         # df_compra_item.to_excel("df_compra_item_BD.xlsx", index=False)
@@ -242,11 +246,11 @@ def gerar_relatorios_compra(nome_cliente):
         num_colunas = len(df_fornecedor.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_fornecedor.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_fornecedor.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_fornecedor.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_fornecedor.head())
         
         # Exportar para Excel
         # df_fornecedor.to_excel("df_fornecedor_BD.xlsx", index=False)
@@ -269,11 +273,11 @@ def gerar_relatorios_compra(nome_cliente):
         num_colunas = len(df_estoque_movimento.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_estoque_movimento.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_estoque_movimento.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_estoque_movimento.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_estoque_movimento.head())
         
         # Exportar para Excel
         # df_estoque_movimento.to_excel("df_estoque_movimento_BD.xlsx", index=False)
@@ -292,11 +296,11 @@ def gerar_relatorios_compra(nome_cliente):
         num_colunas = len(df_categoria.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_categoria.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_categoria.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_categoria.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_categoria.head())
         
         # Exportar para Excel
         # df_categoria.to_excel("df_categoria.xlsx", index=False)
@@ -319,11 +323,11 @@ def gerar_relatorios_compra(nome_cliente):
         num_colunas = len(df_historico_estoque.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_historico_estoque.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_historico_estoque.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_historico_estoque.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_historico_estoque.head())
         
         # Exportar para CSV
         # df_historico_estoque.to_csv("df_historico_estoque.csv", index=False)

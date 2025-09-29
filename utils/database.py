@@ -15,24 +15,39 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Variável global para armazenar configuração
 _DB_CONFIG_CACHE = None
 
-def get_db_config():
+def get_db_config(**kwargs):
     """
     Obtém as configurações de banco de dados com diferentes estratégias
-    dependendo do ambiente de execução
+    dependendo do ambiente de execução e contexto
     
+    Args:
+        **kwargs: Contexto do Airflow, se disponível
+        
     Returns:
         dict: Configuração de conexão ao banco de dados
     """
     global _DB_CONFIG_CACHE
     
-    # Se já temos a configuração em cache, retorna
-    if _DB_CONFIG_CACHE:
+    # Se já temos a configuração em cache e não temos contexto, retorna
+    if _DB_CONFIG_CACHE and (not kwargs or 'ti' not in kwargs):
         return _DB_CONFIG_CACHE
     
-    # Estratégia 1: Tenta importar diretamente do módulo de variáveis
+    # Estratégia 1: Se temos contexto do Airflow, tenta usar o módulo atualizado
+    if kwargs and 'ti' in kwargs:
+        try:
+            from config.airflow_variables import get_db_config_maloka_instance
+            config = get_db_config_maloka_instance(**kwargs)
+            if all(config.values()):
+                _DB_CONFIG_CACHE = config
+                print("✅ DB Config obtido via get_db_config_maloka_instance com contexto")
+                return config
+        except Exception as e:
+            print(f"⚠️ Erro ao carregar config com contexto: {str(e)}")
+    
+    # Estratégia 2: Tenta importar diretamente do módulo de variáveis
     try:
-        from config.airflow_variables import get_db_config_maloka
-        config = get_db_config_maloka()
+        from config.airflow_variables import get_db_config_maloka_instance
+        config = get_db_config_maloka_instance()
         if all(config.values()):  # Verifica se todos os valores estão preenchidos
             _DB_CONFIG_CACHE = config
             print("✅ DB Config obtido diretamente de airflow_variables.py")
@@ -40,7 +55,7 @@ def get_db_config():
     except Exception as e:
         print(f"⚠️ Erro ao carregar config direto: {str(e)}")
     
-    # Estratégia 2: Tenta obter do Airflow via DAG executada
+    # Estratégia 3: Tenta obter do Airflow via DAG executada
     try:
         from airflow.models import DagRun, TaskInstance
         from airflow.utils.db import create_session
@@ -70,7 +85,7 @@ def get_db_config():
     except Exception as e:
         print(f"⚠️ Erro ao carregar config da DAG: {str(e)}")
     
-    # Estratégia 3: Fallback para variáveis de ambiente
+    # Estratégia 4: Fallback para variáveis de ambiente
     try:
         config = {
             'host': os.environ.get('DB_HOST'),
@@ -89,7 +104,20 @@ def get_db_config():
     print("❌ Não foi possível obter configuração de banco válida")
     return {'host': None, 'port': None, 'user': None, 'password': None}
 
-# Carrega a configuração
+# Função para obter instância da configuração com contexto
+def get_db_config_instance(**kwargs):
+    """
+    Função para obter a configuração do banco com contexto do Airflow
+    
+    Args:
+        **kwargs: Contexto do Airflow, se disponível
+        
+    Returns:
+        dict: Configuração de conexão ao banco de dados
+    """
+    return get_db_config(**kwargs)
+
+# Carrega a configuração inicial
 DB_CONFIG_MALOKA = get_db_config()
 
 # Tenta importar o sistema de logging do Airflow
@@ -152,12 +180,13 @@ class DatabaseClient:
         if isinstance(conn_id_or_config, dict):
             self.config = conn_id_or_config
         elif conn_id_or_config is None:
-            # Usa a configuração padrão do DB_CONFIG_MALOKA
-            self.config = DB_CONFIG_MALOKA
+            # Usa a configuração com o contexto do Airflow se disponível
+            self.config = get_db_config_instance(**(context or {}))
         else:
             # Para compatibilidade com código existente que passa conn_id
             self.conn_id = conn_id_or_config
-            self.config = DB_CONFIG_MALOKA
+            # Usa a configuração com o contexto do Airflow se disponível
+            self.config = get_db_config_instance(**(context or {}))
         
     def get_connection_uri(self):
         """
@@ -226,8 +255,9 @@ def verificar_atualizacao_permitida(cliente_id: str, timeout_minutos: int = 15, 
     """
     log_info(f"Verificando se cliente {cliente_id} possui dados não processados e importados há mais de {timeout_minutos} minutos", context)
     
-    # Usa diretamente DB_CONFIG_MALOKA e passa cliente_id como id_cliente
-    db_client = DatabaseClient(DB_CONFIG_MALOKA, context=context, id_cliente=cliente_id)
+    # Obtém a configuração do banco, passando o contexto se disponível
+    db_config = get_db_config_instance(**(context or {}))
+    db_client = DatabaseClient(db_config, context=context, id_cliente=cliente_id)
     
     # Query para verificar se existem dados não processados
     query = """
@@ -275,8 +305,9 @@ def atualizar_todos_registros_pendentes(data_execucao=None, cliente_id=None, con
     if data_execucao is None:
         data_execucao = datetime.now()
         
-    # Usa diretamente DB_CONFIG_MALOKA e passa cliente_id como id_cliente se fornecido
-    db_client = DatabaseClient(DB_CONFIG_MALOKA, context=context, id_cliente=cliente_id)
+    # Obtém a configuração do banco, passando o contexto se disponível
+    db_config = get_db_config_instance(**(context or {}))
+    db_client = DatabaseClient(db_config, context=context, id_cliente=cliente_id)
     
     # Query base para atualizar registros
     query_base = """

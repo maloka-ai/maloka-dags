@@ -9,7 +9,10 @@ import sys
 import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
 from dags.modelagens.analytics.config_clientes import CLIENTES
-from config.airflow_variables import DB_CONFIG_MALOKA
+from config.airflow_variables import get_db_config_maloka_instance
+
+# Obtém a configuração inicial do banco
+DB_CONFIG_MALOKA = get_db_config_maloka_instance()
 
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
