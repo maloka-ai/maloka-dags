@@ -10,10 +10,14 @@ import sys
 from multiprocessing import Pool, cpu_count
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
 from dags.modelagens.analytics.config_clientes import CLIENTES
-from config.airflow_variables import DB_CONFIG_MALOKA
+from config.airflow_variables import get_db_config_maloka_instance
+
+# Obtém a configuração inicial do banco
+DB_CONFIG_MALOKA = get_db_config_maloka_instance()
 
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', message='pandas only supports SQLAlchemy connectable')
 
 # Função auxiliar para processar lotes em paralelo
 def processar_lote(args):
@@ -252,11 +256,11 @@ def gerar_analise_recorrencia_retencao(nome_cliente):
         num_colunas = len(df_vendas.columns)
         
         print(f"Dados obtidos com sucesso! {num_registros} registros e {num_colunas} colunas.")
-        print(f"Colunas disponíveis: {', '.join(df_vendas.columns)}")
+        # print(f"Colunas disponíveis: {', '.join(df_vendas.columns)}")
         
         # Exibir uma amostra dos dados
-        print("\nPrimeiros 5 registros para verificação:")
-        print(df_vendas.head())
+        # print("\nPrimeiros 5 registros para verificação:")
+        # print(df_vendas.head())
         
         # Exportar para Excel
         #df_vendas.to_excel("df_vendas.xlsx", index=False)

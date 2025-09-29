@@ -44,15 +44,31 @@ def get_variable(var_name, default=None):
 # Carrega variáveis de ambiente do arquivo .env
 load_dotenv()
 
-def get_db_config_maloka():
+def get_db_config_maloka(**kwargs):
     """
     Retorna as configurações para conexão ao banco da Maloka,
-    com detecção inteligente do ambiente
+    com detecção inteligente do ambiente e priorização de valores no XCom
     """
     running_in_airflow = AIRFLOW_AVAILABLE and is_running_in_airflow()
     
     print(f"🔍 Ambiente detectado: {'Airflow Task' if running_in_airflow else 'Local/Desenvolvimento'}")
     
+    # Primeiro, tenta obter do XCom se estiver no Airflow e tiver contexto
+    if running_in_airflow and kwargs and 'ti' in kwargs:
+        try:
+            ti = kwargs['ti']
+            print("🔄 Buscando configurações da DAG dag_load_variables via XCom...")
+            xcom_config = ti.xcom_pull(task_ids='load_variables', dag_id='dag_load_variables')
+            
+            if xcom_config and all(k in xcom_config for k in ['host', 'port', 'user', 'password']):
+                print("✅ Configurações encontradas no XCom!")
+                return xcom_config
+            else:
+                print("⚠️ Configurações incompletas ou não encontradas no XCom, usando método padrão...")
+        except Exception as e:
+            print(f"⚠️ Erro ao buscar do XCom: {str(e)}")
+    
+    # Fallback para o método padrão
     if running_in_airflow:
         # No ambiente Airflow, usa as variáveis DB_MALOKA_*
         print("📡 Buscando variáveis DB_MALOKA_* no Airflow...")
@@ -82,18 +98,36 @@ def get_db_config_maloka():
     
     return config
 
+# Variável que vai armazenar a configuração carregada
+DB_CONFIG_MALOKA = None
+
+def get_db_config_maloka_instance(**kwargs):
+    """
+    Método para obter a configuração do banco da Maloka
+    com contexto do Airflow (se disponível)
+    """
+    global DB_CONFIG_MALOKA
+    
+    # Se já tiver carregado e não temos contexto do Airflow, retorna o que já tem
+    if DB_CONFIG_MALOKA is not None and (not kwargs or 'ti' not in kwargs):
+        return DB_CONFIG_MALOKA
+    
+    # Se temos contexto do Airflow ou primeira carga, busca novamente
+    DB_CONFIG_MALOKA = get_db_config_maloka(**kwargs)
+    return DB_CONFIG_MALOKA
+
 # Para debug - só executa se chamado diretamente
 if __name__ == "__main__":
     print("🚀 Testando configuração do banco...")
     print(f"Airflow disponível: {AIRFLOW_AVAILABLE}")
     print(f"Executando em task Airflow: {is_running_in_airflow()}")
     
-    config = get_db_config_maloka()
+    config = get_db_config_maloka_instance()
     
     print("\n📋 Configuração final:")
     for key, value in config.items():
         display_value = "***" if key == 'password' and value else value
         print(f"  {key}: {display_value}")
 
-# Uso normal - carrega configuração
+# Inicialização padrão para uso fora do contexto de tasks
 DB_CONFIG_MALOKA = get_db_config_maloka()

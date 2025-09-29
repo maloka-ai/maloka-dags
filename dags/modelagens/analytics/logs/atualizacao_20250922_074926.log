@@ -1,3 +1,0 @@
-2025-09-22 07:49:26,975 - INFO - Iniciando atualização de todas as modelagens na ordem definida para todos os clientes
-2025-09-22 07:49:26,975 - INFO - Executando dags.modelagens.analytics.vendas.analise_faturamento...
-2025-09-22 07:49:28,824 - INFO - Executando gerar_relatorios_faturamento para o cliente add

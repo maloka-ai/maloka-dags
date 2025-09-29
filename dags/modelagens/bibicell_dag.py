@@ -36,7 +36,7 @@ project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__
 # Importar a classe ModelagemManager para uso nas DAGs
 from dags.modelagens.analytics import main
 from dags.modelagens.analytics.config_clientes import CLIENTES
-from config.airflow_variables import DB_CONFIG_MALOKA
+from config.airflow_variables import get_db_config_maloka_instance
 
 # Importar funções de validação de atualização do banco de dados
 from utils.triggers import (
@@ -58,12 +58,14 @@ def executar_modelagem_bibicell(**kwargs):
         logger.error(f"Cliente {cliente_id} não encontrado na configuração")
         raise ValueError(f"Cliente {cliente_id} não encontrado na configuração")
     
-    # Usamos DB_CONFIG_MALOKA para ter acesso direto às configurações de conexão do banco
+    # Obtém a configuração do banco usando o contexto do Airflow para usar o XCom
+    db_config = get_db_config_maloka_instance(**kwargs)
+    
     # Isso pode ser útil para logs ou para passar para funções que precisam de conexão direta
     log_task_info(kwargs, f"Configurações de banco para cliente {cliente_id}:")
-    log_task_info(kwargs, f"Host: {DB_CONFIG_MALOKA['host']}")
-    log_task_info(kwargs, f"Port: {DB_CONFIG_MALOKA['port']}")
-    log_task_info(kwargs, f"User: {DB_CONFIG_MALOKA['user']}")
+    log_task_info(kwargs, f"Host: {db_config['host']}")
+    log_task_info(kwargs, f"Port: {db_config['port']}")
+    log_task_info(kwargs, f"User: {db_config['user']}")
     
     try:
         # Executa as modelagens apenas para o cliente BIBICELL
@@ -91,8 +93,9 @@ default_args = {
 CLIENTE_ID = 'bibicell'
 INTERVALO_VERIFICACAO_MIN = 15  # Verificar a cada 15 minutos
 
-# Agora estamos usando diretamente a configuração do banco através de DB_CONFIG_MALOKA
-logger.info(f"Usando configuração de banco: Host={DB_CONFIG_MALOKA['host']}, Port={DB_CONFIG_MALOKA['port']}")
+# Obtém configuração inicial para logs (será atualizada quando a DAG executar as tasks)
+db_config_inicial = get_db_config_maloka_instance()
+logger.info(f"Usando configuração de banco: Host={db_config_inicial['host']}, Port={db_config_inicial['port']}")
 
 # Definição da DAG usando with
 with DAG(
@@ -135,7 +138,8 @@ with DAG(
     # Função para logging detalhado no sucesso
     def registrar_sucesso_com_logs(**kwargs):
         log_task_info(kwargs, f"Registrando sucesso para cliente {CLIENTE_ID}")
-        resultado = registrar_sucesso_atualizacao(cliente_id=CLIENTE_ID)
+        # Passamos o contexto para todas as operações de banco
+        resultado = registrar_sucesso_atualizacao(cliente_id=CLIENTE_ID, context=kwargs)
         log_task_info(kwargs, f"Resultado do registro de sucesso: {resultado}")
         return resultado
 
@@ -151,7 +155,8 @@ with DAG(
     def registrar_falha_com_logs(**kwargs):
         log_task_info(kwargs, f"Registrando falha para cliente {CLIENTE_ID}")
         try:
-            resultado = registrar_falha_atualizacao(cliente_id=CLIENTE_ID)
+            # Passamos o contexto para todas as operações de banco
+            resultado = registrar_falha_atualizacao(cliente_id=CLIENTE_ID, context=kwargs)
             log_task_info(kwargs, f"Resultado do registro de falha: {resultado}")
             return resultado
         except Exception as e:
