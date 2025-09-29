@@ -12,7 +12,10 @@ from mlxtend.frequent_patterns import fpgrowth
 from mlxtend.frequent_patterns import association_rules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
 from dags.modelagens.analytics.config_clientes import CLIENTES
-from config.airflow_variables import DB_CONFIG_MALOKA
+from config.airflow_variables import get_db_config_maloka_instance
+
+# Obtém a configuração inicial do banco
+DB_CONFIG_MALOKA = get_db_config_maloka_instance()
 
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
@@ -659,7 +662,12 @@ def gerar_relatorios_cross_selling(nome_cliente):
             end_time = datetime.now()
             processing_time = end_time - start_time
             print(f"Tempo de processamento do fpgrowth: {processing_time}")
-            
+
+            if frequent_itemsets is None:
+                print("fpgrowth retornou None - nenhum resultado encontrado")
+                print(f"Tente reduzir o valor de min_support (atual: {min_support})")
+                return pd.DataFrame()
+                        
             if frequent_itemsets.empty:
                 print(f"Nenhum itemset frequente encontrado com min_support={min_support}")
                 print("Sugestões:")
