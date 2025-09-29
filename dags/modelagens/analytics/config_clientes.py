@@ -153,8 +153,8 @@ CLIENTES = {
         "min_confidence": 0.05,
 
         # Se cross-selling for False, configurar os parâmetros abaixo
-        "limite_prod_clientes": 50,       # Limite de produtos a serem considerados
-        "min_support_analise_clientes": 0.0001,
+        "limite_prod_clientes": 100,       # Limite de produtos a serem considerados
+        "min_support_analise_clientes": 0.005,
         "min_confidence_analise_clientes": 0.05,
         "podar_populares_clientes": False,
         "quantidade_populares_clientes": 0,
