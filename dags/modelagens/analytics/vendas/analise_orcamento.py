@@ -20,11 +20,15 @@ import psycopg2
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
 
 from dags.modelagens.analytics.config_clientes import CLIENTES
-from config.airflow_variables import DB_CONFIG_MALOKA
+from config.airflow_variables import get_db_config_maloka_instance
+
+# Obtém a configuração inicial do banco
+DB_CONFIG_MALOKA = get_db_config_maloka_instance()
 
 # Suprime avisos que podem interferir na saída
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', message='pandas only supports SQLAlchemy connectable')
 
 def processar_lote(args: Tuple[List[Tuple], Dict[str, Any], str, int]) -> Tuple[int, Optional[str]]:
     """
