@@ -75,18 +75,51 @@ def inserir_dados_paralelo(df, tabela, database, conn, cursor, schema="maloka_an
         # Preparar a query com ON CONFLICT para lidar com chaves duplicadas
         placeholders = ", ".join(["%s"] * len(df_upload.columns))
         
-        # Se tabela for segmentacao, usar ON CONFLICT para atualizar registros existentes
+        # Se tabela for segmentacao, verificar se ela tem restrição de chave primária para id_cliente
         if tabela == "segmentacao":
-            # Obter todas as colunas exceto id_cliente
-            update_cols = [col for col in df_upload.columns if col != "id_cliente"]
-            update_stmts = [f'"{col}" = EXCLUDED."{col}"' for col in update_cols]
+            # Verificar se existe uma chave primária ou restrição única para id_cliente
+            conn_check = psycopg2.connect(
+                host=DB_CONFIG_MALOKA['host'],
+                database=database,
+                user=DB_CONFIG_MALOKA['user'],
+                password=DB_CONFIG_MALOKA['password'],
+                port=DB_CONFIG_MALOKA['port']
+            )
+            cursor_check = conn_check.cursor()
             
-            insert_query = f"""
-            INSERT INTO {schema}.{tabela} ({", ".join(colunas)})
-            VALUES ({placeholders})
-            ON CONFLICT (id_cliente) DO UPDATE SET
-            {", ".join(update_stmts)}
-            """
+            # Verificar se existe primary key ou unique constraint na coluna id_cliente
+            cursor_check.execute(f"""
+                SELECT COUNT(*) FROM information_schema.table_constraints tc
+                JOIN information_schema.constraint_column_usage ccu 
+                ON tc.constraint_name = ccu.constraint_name
+                WHERE tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE')
+                AND tc.table_schema = '{schema}'
+                AND tc.table_name = '{tabela}'
+                AND ccu.column_name = 'id_cliente'
+            """)
+            
+            has_constraint = cursor_check.fetchone()[0] > 0
+            cursor_check.close()
+            conn_check.close()
+            
+            if has_constraint:
+                # Obter todas as colunas exceto id_cliente
+                update_cols = [col for col in df_upload.columns if col != "id_cliente"]
+                update_stmts = [f'"{col}" = EXCLUDED."{col}"' for col in update_cols]
+                
+                insert_query = f"""
+                INSERT INTO {schema}.{tabela} ({", ".join(colunas)})
+                VALUES ({placeholders})
+                ON CONFLICT (id_cliente) DO UPDATE SET
+                {", ".join(update_stmts)}
+                """
+            else:
+                print(f"Aviso: A tabela {schema}.{tabela} não possui restrição única na coluna id_cliente.")
+                print("Usando INSERT simples sem ON CONFLICT.")
+                insert_query = f"""
+                INSERT INTO {schema}.{tabela} ({", ".join(colunas)})
+                VALUES ({placeholders})
+                """
         else:
             insert_query = f"""
             INSERT INTO {schema}.{tabela} ({", ".join(colunas)})
@@ -190,18 +223,42 @@ def inserir_dados_paralelo(df, tabela, database, conn, cursor, schema="maloka_an
             colunas = [f'"{col}"' for col in df_upload.columns]
             placeholders = ", ".join(["%s"] * len(df_upload.columns))
             
-            # Se tabela for segmentacao, usar ON CONFLICT para atualizar registros existentes
+            # Se tabela for segmentacao, verificar se ela tem restrição de chave primária para id_cliente
             if tabela == "segmentacao":
-                # Obter todas as colunas exceto id_cliente
-                update_cols = [col for col in df_upload.columns if col != "id_cliente"]
-                update_stmts = [f'"{col}" = EXCLUDED."{col}"' for col in update_cols]
+                # Verificar se existe uma chave primária ou restrição única para id_cliente
+                cursor_check = conn.cursor()
                 
-                insert_query = f"""
-                INSERT INTO {schema}.{tabela} ({", ".join(colunas)})
-                VALUES ({placeholders})
-                ON CONFLICT (id_cliente) DO UPDATE SET
-                {", ".join(update_stmts)}
-                """
+                # Verificar se existe primary key ou unique constraint na coluna id_cliente
+                cursor_check.execute(f"""
+                    SELECT COUNT(*) FROM information_schema.table_constraints tc
+                    JOIN information_schema.constraint_column_usage ccu 
+                    ON tc.constraint_name = ccu.constraint_name
+                    WHERE tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE')
+                    AND tc.table_schema = '{schema}'
+                    AND tc.table_name = '{tabela}'
+                    AND ccu.column_name = 'id_cliente'
+                """)
+                
+                has_constraint = cursor_check.fetchone()[0] > 0
+                
+                if has_constraint:
+                    # Obter todas as colunas exceto id_cliente
+                    update_cols = [col for col in df_upload.columns if col != "id_cliente"]
+                    update_stmts = [f'"{col}" = EXCLUDED."{col}"' for col in update_cols]
+                    
+                    insert_query = f"""
+                    INSERT INTO {schema}.{tabela} ({", ".join(colunas)})
+                    VALUES ({placeholders})
+                    ON CONFLICT (id_cliente) DO UPDATE SET
+                    {", ".join(update_stmts)}
+                    """
+                else:
+                    print(f"Aviso: A tabela {schema}.{tabela} não possui restrição única na coluna id_cliente.")
+                    print("Usando INSERT simples sem ON CONFLICT.")
+                    insert_query = f"""
+                    INSERT INTO {schema}.{tabela} ({", ".join(colunas)})
+                    VALUES ({placeholders})
+                    """
             else:
                 insert_query = f"""
                 INSERT INTO {schema}.{tabela} ({", ".join(colunas)})
@@ -1063,9 +1120,11 @@ def inserir_segmentacao_no_banco(database, rfma_segmentado):
             print("Criando tabela segmentacao no esquema maloka_analytics...")
             # Definir os tipos de dados para cada coluna com base nos tipos do DataFrame
             colunas = []
+            primary_key_added = False
             for coluna, dtype in rfma_segmentado.dtypes.items():
-                if 'int' in str(dtype):
-                    tipo = 'INTEGER'
+                if coluna == 'id_cliente':
+                    tipo = 'INTEGER PRIMARY KEY'
+                    primary_key_added = True
                 elif 'float' in str(dtype):
                     tipo = 'NUMERIC'
                 elif 'datetime' in str(dtype):
@@ -1073,14 +1132,64 @@ def inserir_segmentacao_no_banco(database, rfma_segmentado):
                 else:
                     tipo = 'TEXT'
                 colunas.append(f'"{coluna}" {tipo}')
+
+            # Se por algum motivo id_cliente não estava nas colunas, adicione a definição de chave primária
+            if not primary_key_added:
+                colunas.append('"id_cliente" INTEGER PRIMARY KEY')
             
-            create_table_query = f"""
-            CREATE UNLOGGED TABLE maloka_analytics.segmentacao (
-                {", ".join(colunas)}
-            )
-            """
-            cursor.execute(create_table_query)
-            print("Tabela UNLOGGED criada para inserção rápida")
+            try:
+                # Garantir que id_cliente seja PRIMARY KEY
+                colunas_ajustadas = []
+                has_id_cliente_pk = False
+                
+                for coluna in colunas:
+                    if "id_cliente" in coluna.lower() and "primary key" in coluna.lower():
+                        has_id_cliente_pk = True
+                        colunas_ajustadas.append(coluna)
+                    elif "id_cliente" in coluna.lower() and "primary key" not in coluna.lower():
+                        has_id_cliente_pk = True
+                        colunas_ajustadas.append(coluna.replace("INTEGER", "INTEGER PRIMARY KEY").replace("TEXT", "TEXT PRIMARY KEY"))
+                    else:
+                        colunas_ajustadas.append(coluna)
+                
+                if not has_id_cliente_pk:
+                    colunas_ajustadas.append('"id_cliente" INTEGER PRIMARY KEY')
+                
+                create_table_query = f"""
+                CREATE UNLOGGED TABLE maloka_analytics.segmentacao (
+                    {", ".join(colunas_ajustadas)}
+                )
+                """
+                print("Executando query de criação da tabela:")
+                print(create_table_query)
+                cursor.execute(create_table_query)
+                conn.commit()  # Confirmar a criação da tabela
+                print("Tabela UNLOGGED criada para inserção rápida")
+            except Exception as e:
+                print(f"Erro ao criar tabela maloka_analytics.segmentacao: {e}")
+                print("Tentando criar novamente com definição de chave primária explícita...")
+                
+                # Tentar criar a tabela novamente com uma definição de chave primária explícita
+                try:
+                    create_table_query = """
+                    CREATE UNLOGGED TABLE maloka_analytics.segmentacao (
+                        "id_cliente" INTEGER PRIMARY KEY,
+                        "recencia" INTEGER,
+                        "frequencia" INTEGER,
+                        "valor_monetario" NUMERIC,
+                        "antiguidade" INTEGER,
+                        "r_decil" INTEGER,
+                        "f_decil" INTEGER,
+                        "vm_decil" INTEGER,
+                        "a_decil" INTEGER,
+                        "segmento" TEXT
+                    )
+                    """
+                    cursor.execute(create_table_query)
+                    conn.commit()  # Confirmar a criação da tabela
+                    print("Tabela criada com definição manual de colunas")
+                except Exception as e2:
+                    print(f"Falha na segunda tentativa de criar tabela: {e2}")
             
             # Definir fillfactor para reduzir fragmentação
             cursor.execute("ALTER TABLE maloka_analytics.segmentacao SET (fillfactor = 90)")
@@ -1204,9 +1313,26 @@ def inserir_segmentacao_para_assistente(database, rfma_segmentado_assistente):
                 colunas.append('"id_cliente" INTEGER PRIMARY KEY')
             
             try:
+                # Garantir que id_cliente seja PRIMARY KEY
+                colunas_ajustadas = []
+                has_id_cliente_pk = False
+                
+                for coluna in colunas:
+                    if "id_cliente" in coluna.lower() and "primary key" in coluna.lower():
+                        has_id_cliente_pk = True
+                        colunas_ajustadas.append(coluna)
+                    elif "id_cliente" in coluna.lower() and "primary key" not in coluna.lower():
+                        has_id_cliente_pk = True
+                        colunas_ajustadas.append(coluna.replace("INTEGER", "INTEGER PRIMARY KEY").replace("TEXT", "TEXT PRIMARY KEY"))
+                    else:
+                        colunas_ajustadas.append(coluna)
+                
+                if not has_id_cliente_pk:
+                    colunas_ajustadas.append('"id_cliente" INTEGER PRIMARY KEY')
+                
                 create_table_query = f"""
                 CREATE UNLOGGED TABLE maloka_core.segmentacao (
-                    {", ".join(colunas)}
+                    {", ".join(colunas_ajustadas)}
                 )
                 """
                 print("Executando query de criação da tabela:")
