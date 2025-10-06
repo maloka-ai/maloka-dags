@@ -655,6 +655,7 @@ def gerar_analise_cliente(nome_cliente, data_referencia=None):
                     'antiguidade': 'mean'
                 }).round(2)
                 
+                # Renomear colunas
                 analise_segmentos.columns = [
                     'Quantidade Clientes',
                     'media_recencia_dias',
@@ -673,6 +674,18 @@ def gerar_analise_cliente(nome_cliente, data_referencia=None):
             print(f"\nAnálise Detalhada por Segmento ({tipo_nome}):")
             print("=" * 120)
             print(analise_segmentos)
+            
+            # Exibição das médias por segmento de forma mais detalhada
+            print("\nMétricas detalhadas por segmento:")
+            print("=" * 120)
+            for segmento in analise_segmentos.index:
+                seg_data = analise_segmentos.loc[segmento]
+                print(f"\nSegmento: {segmento} ({int(seg_data['Quantidade Clientes'])} clientes)")
+                print("-" * 80)
+                print(f"Valor Monetário: média R$ {seg_data['media_valor_monetario']:.2f}")
+                print(f"Recência: média {seg_data['media_recencia_dias']:.1f} dias")
+                print(f"Frequência: média {seg_data['media_frequencia']:.2f} compras")
+                print(f"Antiguidade: média {seg_data['media_antiguidade_dias']:.1f} dias")
             
             # Mesclar dados para o arquivo final
             if tipo == 'PF':
@@ -881,6 +894,7 @@ def gerar_analise_cliente(nome_cliente, data_referencia=None):
                 'antiguidade': 'mean'
             }).round(2)
             
+            # Renomear colunas
             analise_segmentos.columns = [
                 'Quantidade Clientes',
                 'media_recencia_dias',
@@ -899,6 +913,18 @@ def gerar_analise_cliente(nome_cliente, data_referencia=None):
         print("\nAnálise Detalhada por Segmento:")
         print("=" * 120)
         print(analise)
+        
+        # Exibição das médias por segmento de forma mais detalhada
+        print("\nMétricas detalhadas por segmento:")
+        print("=" * 120)
+        for segmento in analise.index:
+            seg_data = analise.loc[segmento]
+            print(f"\nSegmento: {segmento} ({int(seg_data['Quantidade Clientes'])} clientes)")
+            print("-" * 80)
+            print(f"Valor Monetário: média R$ {seg_data['media_valor_monetario']:.2f}")
+            print(f"Recência: média {seg_data['media_recencia_dias']:.1f} dias")
+            print(f"Frequência: média {seg_data['media_frequencia']:.2f} compras")
+            print(f"Antiguidade: média {seg_data['media_antiguidade_dias']:.1f} dias")
         
         # Mescla convencional
         rfma_segmentado = rfma_segmentado.merge(df_clientes_PF[['id_cliente', 'cpf']], on='id_cliente', how='left')
@@ -999,7 +1025,27 @@ def gerar_analise_cliente(nome_cliente, data_referencia=None):
     segmentos_unicos = sorted(rfma_segmentado['segmento'].unique())
     metricas = {'data': data_execucao}  # Iniciar com a data de execução
         
-    # Adicionar contagens de PF, PJ e total por segmento com nomes padronizados
+    # Certifique-se de que análise está definida para ambos os fluxos (separar_pf_pj True ou False)
+    if 'analise' not in locals():
+        # Se estivermos no fluxo separar_pf_pj=True, não teremos uma variável 'analise', 
+        # mas teremos vários analise_segmentos
+        # Vamos usar os dados agregados por segmento do rfma_segmentado
+        print("Usando dados agregados para gerar métricas de segmentação...")
+        analise_agregada = rfma_segmentado.groupby('segmento').agg({
+            'recencia': 'mean',
+            'frequencia': 'mean',
+            'valor_monetario': 'mean',
+            'antiguidade': 'mean'
+        }).round(2)
+        analise_agregada.columns = [
+            'media_recencia_dias',
+            'media_frequencia',
+            'media_valor_monetario',
+            'media_antiguidade_dias'
+        ]
+        analise = analise_agregada
+    
+    # Adicionar contagens de PF, PJ, total por segmento e médias das métricas com nomes padronizados
     for segmento in segmentos_unicos:
         # Substituir espaços por underscores e remover caracteres especiais
         nome_segmento = remover_acentos(segmento).replace(' ', '_').replace('-', '_').lower()
@@ -1012,6 +1058,14 @@ def gerar_analise_cliente(nome_cliente, data_referencia=None):
         
         # Adicionar contagem total (PF + PJ) para o segmento
         metricas[f'total_{nome_segmento}'] = contagem_total.get(segmento, 0)
+        
+        # Adicionar médias das métricas para o segmento, se o segmento existir na análise
+        if segmento in analise.index:
+            # Médias por segmento
+            metricas[f'media_valor_monetario_{nome_segmento}'] = analise.loc[segmento, 'media_valor_monetario']
+            metricas[f'media_recencia_{nome_segmento}'] = analise.loc[segmento, 'media_recencia_dias']
+            metricas[f'media_frequencia_{nome_segmento}'] = analise.loc[segmento, 'media_frequencia']
+            metricas[f'media_antiguidade_{nome_segmento}'] = analise.loc[segmento, 'media_antiguidade_dias']
             
     # Criar DataFrame com uma única linha
     metricas_df = pd.DataFrame([metricas])
@@ -1182,7 +1236,15 @@ def inserir_segmentacao_no_banco(database, rfma_segmentado):
                         "f_decil" INTEGER,
                         "vm_decil" INTEGER,
                         "a_decil" INTEGER,
-                        "segmento" TEXT
+                        "segmento" TEXT,
+                        "cpf" TEXT,
+                        "cnpj" TEXT,
+                        "nome" TEXT,
+                        "email" TEXT,
+                        "telefone" TEXT,
+                        "tipo_pessoa" TEXT,
+                        "antepenultima_segmentacao" TEXT,
+                        "penultima_segmentacao" TEXT
                     )
                     """
                     cursor.execute(create_table_query)
@@ -1204,7 +1266,8 @@ def inserir_segmentacao_no_banco(database, rfma_segmentado):
         # Usar a função para inserir os dados em paralelo
         inserir_dados_paralelo(rfma_segmentado, "segmentacao", database, conn, cursor, "maloka_analytics")
 
-        print(f"Dados inseridos com sucesso em maloka_analytics! Total de {len(rfma_segmentado)} registros.")        # Fechar cursor e conexão
+        print(f"Dados inseridos com sucesso em maloka_analytics! Total de {len(rfma_segmentado)} registros.")
+        # Fechar cursor e conexão
         cursor.close()
         conn.close()
         return True
@@ -1376,40 +1439,6 @@ def inserir_segmentacao_para_assistente(database, rfma_segmentado_assistente):
         # Otimização da inserção de dados
         print(f"Preparando para inserir {len(rfma_segmentado_assistente)} registros na tabela segmentacao...")
         
-        # Verificar se a tabela maloka_core.segmentacao existe antes de tentar inserir dados
-        cursor.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='segmentacao' AND table_schema='maloka_core')")
-        tabela_existe = cursor.fetchone()[0]
-        
-        if not tabela_existe:
-            print("ERRO: A tabela maloka_core.segmentacao não existe após a tentativa de criação!")
-            print("Tentando criar a tabela novamente...")
-            
-            # Último recurso - tentar criar a tabela novamente
-            try:
-                create_table_query = """
-                CREATE UNLOGGED TABLE maloka_core.segmentacao (
-                    "id_cliente" INTEGER PRIMARY KEY,
-                    "recencia" INTEGER,
-                    "frequencia" INTEGER,
-                    "valor_monetario" NUMERIC,
-                    "antiguidade" INTEGER,
-                    "r_decil" INTEGER,
-                    "f_decil" INTEGER,
-                    "vm_decil" INTEGER,
-                    "a_decil" INTEGER,
-                    "segmento" TEXT
-                )
-                """
-                cursor.execute(create_table_query)
-                conn.commit()
-                print("Tabela criada com sucesso no último recurso")
-            except Exception as e:
-                print(f"Falha na última tentativa de criar tabela: {e}")
-                print("Não foi possível criar a tabela maloka_core.segmentacao")
-                cursor.close()
-                conn.close()
-                return False
-        
         # Usar a função para inserir os dados em paralelo
         resultado = inserir_dados_paralelo(rfma_segmentado_assistente, "segmentacao", database, conn, cursor, "maloka_core")
         
@@ -1469,7 +1498,36 @@ def inserir_metricas_no_banco(database, metricas_df):
         cursor.execute("SELECT EXISTS(SELECT * FROM information_schema.tables WHERE table_name='metricas_segmentacao' AND table_schema='maloka_analytics')")
         tabela_existe = cursor.fetchone()[0]
         
-        if not tabela_existe:
+        if tabela_existe:
+            print(f"Tabela metricas_segmentacao já existe no esquema maloka_analytics.")
+            # Verificar se as novas colunas existem na tabela
+            cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='metricas_segmentacao' AND table_schema='maloka_analytics'")
+            colunas_existentes = [row[0] for row in cursor.fetchall()]
+            colunas_novas = [col for col in metricas_df.columns if col not in colunas_existentes]
+            # Adicionar colunas que não existem ainda
+            for coluna in colunas_novas:
+                print(f"Adicionando nova coluna: {coluna}")
+                    
+                # Determinar o tipo de dados da coluna
+                dtype = metricas_df[coluna].dtype
+                if 'int' in str(dtype):
+                    tipo = 'INTEGER'
+                elif 'float' in str(dtype):
+                    tipo = 'DECIMAL'
+                elif coluna == 'data':
+                    tipo = 'DATE'
+                else:
+                    tipo = 'TEXT'
+                        
+                # Executar o ALTER TABLE para adicionar a coluna
+                try:
+                    cursor.execute(f'ALTER TABLE maloka_analytics.metricas_segmentacao ADD COLUMN "{coluna}" {tipo}')
+                    conn.commit()
+                    print(f"Coluna {coluna} adicionada com sucesso!")
+                except Exception as e:
+                    print(f"Erro ao adicionar coluna {coluna}: {e}")
+                    conn.rollback()
+        else:
             # Criar a tabela se não existir
             print("Criando tabela metricas_segmentacao no esquema maloka_analytics...")
             # Definir os tipos de dados para cada coluna com base nos tipos do DataFrame
