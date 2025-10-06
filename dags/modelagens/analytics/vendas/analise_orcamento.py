@@ -20,6 +20,7 @@ import psycopg2
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..")))
 
 from dags.modelagens.analytics.config_clientes import CLIENTES
+from utils.update_database import inserir_dataframe_postgres
 from config.airflow_variables import get_db_config_maloka_instance
 
 # Obtém a configuração inicial do banco
@@ -29,43 +30,6 @@ DB_CONFIG_MALOKA = get_db_config_maloka_instance()
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
 warnings.filterwarnings('ignore', message='pandas only supports SQLAlchemy connectable')
-
-def processar_lote(args: Tuple[List[Tuple], Dict[str, Any], str, int]) -> Tuple[int, Optional[str]]:
-    """
-    Processa um lote de dados em paralelo para inserção no banco de dados.
-
-    Args:
-        args: Tupla contendo:
-            - lote_dados: Lista de tuplas com os dados a serem inseridos
-            - db_config: Configurações da conexão com o banco de dados
-            - query: Query SQL para inserção
-            - start_index: Índice inicial do lote (para rastreamento)
-
-    Returns:
-        Tupla contendo:
-            - Número de registros inseridos
-            - Mensagem de erro (None se não houver erro)
-    """
-    lote_dados, db_config, query, start_index = args
-    try:
-        # Conectar ao banco de dados
-        conn = psycopg2.connect(**db_config)
-        cursor = conn.cursor()
-        
-        # Otimizar para inserção
-        cursor.execute("SET synchronous_commit = off")
-        
-        # Inserir dados
-        cursor.executemany(query, lote_dados)
-        conn.commit()
-        
-        # Fechar conexão
-        cursor.close()
-        conn.close()
-        
-        return len(lote_dados), None  # Retorna quantidade inserida e sem erro
-    except Exception as e:
-        return 0, str(e)  # Retorna 0 registros inseridos e a mensagem de erro
 
 def carregar_dados_cliente(
     nome_cliente: str
@@ -89,6 +53,11 @@ def carregar_dados_cliente(
     config_cliente = CLIENTES[nome_cliente]
     database = config_cliente["database"]
     schema = config_cliente["schema"]
+    analise_orcamento = config_cliente["analise_orcamento"]
+    if analise_orcamento is False:
+        print(f"A análise de orçamento está desativada para o cliente '{nome_cliente}'.")
+        return {}
+
     
     print(f"Gerando relatórios para o cliente: {nome_cliente}")
     print(f"Database: {database}, Schema: {schema}")
@@ -340,7 +309,10 @@ def analisar_top_categorias(
     
     # Filtragem de acordo com tipo_analise
     if tipo_analise == 'ORCAMENTO':
-        df_filtrado = df_vendas_itens_completo[df_vendas_itens_completo['tipo_venda'] == 'ORCAMENTO']
+        df_filtrado = df_vendas_itens_completo[
+            (df_vendas_itens_completo['tipo_venda'] == 'ORCAMENTO') &
+            (df_vendas_itens_completo['situacao_venda'] == 'ABERTO')
+        ]
     elif tipo_analise == 'PEDIDO':
         df_filtrado = df_vendas_itens_completo[
             (df_vendas_itens_completo['tipo_venda'] == 'PEDIDO') &
@@ -593,15 +565,30 @@ def gerar_relatorios_orcamento(nome_cliente: str) -> None:
         )
         
         # Salvar relatório
-        caminho_arquivo = salvar_relatorio(df_consolidado)
-        print(f"\nRelatório consolidado salvo em: {caminho_arquivo}")
-        print("\nPrimeiras linhas do relatório consolidado:")
-        print(df_consolidado.head())
-        
+        # caminho_arquivo = salvar_relatorio(df_consolidado)
+        # print(f"\nRelatório consolidado salvo em: {caminho_arquivo}")
+        # print("\nPrimeiras linhas do relatório consolidado:")
+        # print(df_consolidado.head())
+
+        #####
+        # Colocar no banco de dados Maloka
+        ####
+        database = nome_cliente
+        db_config = {
+            'host': DB_CONFIG_MALOKA['host'],
+            'database': database,
+            'user': DB_CONFIG_MALOKA['user'],
+            'password': DB_CONFIG_MALOKA['password'],
+            'port': DB_CONFIG_MALOKA['port']
+        }
+        inserir_dataframe_postgres(df=df_consolidado, 
+                                  schema='maloka_analytics', 
+                                  tabela='analise_orcamento',
+                                  db_config=db_config)
+
     except Exception as e:
         print(f"Erro ao gerar relatórios: {e}")
         print(traceback.format_exc())
-
 
 if __name__ == "__main__":
     # Exemplo de execução para o cliente "add"

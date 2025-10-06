@@ -55,6 +55,7 @@ class ModelagemManager:
             'vendas': {
                 'faturamento': 'dags.modelagens.analytics.vendas.analise_faturamento',
                 'atipicas': 'dags.modelagens.analytics.vendas.analise_vendas_atipicas',
+                'orcamento': 'dags.modelagens.analytics.vendas.analise_orcamento',
                 # 'cesta': 'dags.modelagens.analytics.vendas.cesta_compras',
                 # 'cross': 'modelagens.analytics.vendas.cross_selling',
             }
@@ -73,6 +74,7 @@ class ModelagemManager:
             
             # Modelagens com dependências
             ('vendas', 'atipicas'),  # Depende de análise de compra
+            ('vendas', 'orcamento'),
             
             # Outras modelagens que podem ser ativadas no futuro
             # ('vendas', 'cesta'),
@@ -226,6 +228,7 @@ class ModelagemManager:
                 'dags.modelagens.analytics.cliente.previsao_retorno': 'gerar_analise_previsao_retorno',
                 'dags.modelagens.analytics.compra.analise_compra': 'gerar_relatorios_compra',
                 'dags.modelagens.analytics.vendas.analise_vendas_atipicas': 'gerar_analise_vendas_atipicas',
+                'dags.modelagens.analytics.vendas.analise_orcamento': 'gerar_analise_orcamento',
                 # 'dags.modelagens.analytics.vendas.cesta_compras': 'gerar_analise_cesta_compras',
                 # 'dags.modelagens.analytics.vendas.cross_selling': 'gerar_analise_cross_selling'
             }

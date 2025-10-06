@@ -58,6 +58,11 @@ CLIENTES = {
         "podar_populares": False,
         "quantidade_populares": 0,
         "tempo_analise_atipicidade": 1,  # Tempo de análise para venda atípica em anos
+
+        ####################
+        # ANALISE_ORCAMENTO
+        ####################
+        "analise_orcamento": True,
     },
     "bibicell": {
         "database": "bibicell",
@@ -113,6 +118,11 @@ CLIENTES = {
         "tempo_analise_estatistico": 365,  # Tempo de análise para venda atípica em dias
         "tempo_analise_atipicidade": 1,
         "valor_desvio_padrao": 0.5,        # Valor do desvio padrão para identificar vendas atípicas 0.5 ou 2.0 para bibicell
+
+        ####################
+        # ANALISE_ORCAMENTO
+        ####################
+        "analise_orcamento": False,
     },
     "beny": {
         "database": "beny",
@@ -172,6 +182,11 @@ CLIENTES = {
         "tempo_analise_estatistico": 365, # Tempo de análise para venda atípica em dias
         "tempo_analise_atipicidade": 1,
         "valor_desvio_padrao": 0.5,       # Valor do desvio padrão para identificar vendas atípicas 0.5 ou 2.0 para bibicell
+
+        ####################
+        # ANALISE_ORCAMENTO
+        ####################
+        "analise_orcamento": False,
     },
     # Adicione outros clientes conforme necessário
 }
