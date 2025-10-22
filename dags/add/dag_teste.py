@@ -9,7 +9,7 @@ def normalizar_texto_spede():
 with DAG(
     dag_id="dagNormalizarTextoSpede",
     start_date=datetime(2025, 8, 2),
-    schedule_interval="*/15 * * * *",   # a cada 15 minutos
+    schedule="*/15 * * * *",  # a cada 15 minutos
     catchup=False,
     tags=["normalizacao", "texto", "spede"],
 ) as dag:
